@@ -1,0 +1,33 @@
+---
+import { formatPrice } from "../lib/core/catalog";
+import type { Offer, Store } from "../lib/core/types";
+
+interface Props {
+  offer: Offer;
+  store?: Store;
+}
+
+const { offer, store } = Astro.props;
+const badges = offer.badges ?? [];
+const badgeLabels: Record<string, string> = {
+  lowest: "最低價",
+  official: "官方/授權",
+  "cross-border": "跨境",
+};
+const visibleBadges = badges.filter((badge) => badge === "lowest" || badge === "official" || badge === "cross-border");
+---
+
+<article class="price-card">
+  <div class="price-card-main">
+    <div>
+      <h3>{store?.name ?? offer.storeId}</h3>
+      {visibleBadges.length > 0 && (
+        <div class="price-card-meta">
+          {visibleBadges.map((badge) => <span class:list={["subtle-tag", badge === "lowest" && "lowest"]}>{badgeLabels[badge]}</span>)}
+        </div>
+      )}
+    </div>
+    <div class="price">{formatPrice(offer.price)}</div>
+  </div>
+  <a class="button" href={offer.url} rel="nofollow noopener noreferrer" target="_blank">前往</a>
+</article>

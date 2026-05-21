@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Price Radar">
+  <rect width="64" height="64" rx="18" fill="#121826"/>
+  <path d="M15 41c8-17 18-23 34-27-4 16-11 27-28 35l4-14-10 6Z" fill="#ff6a3d"/>
+  <circle cx="34" cy="30" r="6" fill="#fffaf3"/>
+</svg>

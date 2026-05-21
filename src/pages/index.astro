@@ -1,0 +1,113 @@
+---
+import ProductCard from "../components/ProductCard.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCategory, getDiscountSpread, scoreTrend } from "../lib/core/catalog";
+import { getSiteData } from "../lib/core/loadSiteData";
+import { absoluteSiteUrl, sitePath } from "../lib/core/urls";
+
+const siteData = await getSiteData();
+const featuredProducts = siteData.products
+  .map((product) => ({
+    product,
+    category: getCategory(product.categoryId),
+    offers: siteData.offers.filter((offer) => offer.productSlug === product.slug),
+  }))
+  .sort((a, b) => getDiscountSpread(b.offers) - getDiscountSpread(a.offers))
+  .slice(0, 6);
+
+const topTrends = [...siteData.trends].sort((a, b) => scoreTrend(b) - scoreTrend(a)).slice(0, 6);
+const categoriesWithCounts = siteData.categories.map((category) => ({
+  ...category,
+  count: siteData.products.filter((product) => product.categoryId === category.id).length,
+}));
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Taiwan Price Radar",
+  inLanguage: "zh-Hant-TW",
+  description: "台灣熱搜商品比價，快速找到最低價、價差與購買建議。",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: absoluteSiteUrl("/products/?q={search_term_string}", Astro.site),
+    "query-input": "required name=search_term_string",
+  },
+};
+---
+
+<BaseLayout
+  title="Taiwan Price Radar | 台灣熱搜商品比價"
+  description="乾淨、直接的台灣熱搜商品比價入口，快速看最低價、價差與購買建議。"
+  canonicalPath="/"
+  structuredData={structuredData}
+>
+  <section class="site-shell hero">
+    <div class="hero-copy">
+      <span class="eyebrow">今日值得比的價格</span>
+      <h1>少一點搜尋，多一點確定。</h1>
+      <p>
+        用最直接的方式整理熱門商品價格。先看最低價、價差和重點提醒，再決定要不要買。
+      </p>
+      <div class="hero-actions">
+        <a class="button" href={sitePath("/products/")}>開始比價</a>
+        <a class="button secondary" href={sitePath("/products/")}>全部商品</a>
+      </div>
+      <div class="summary-bar hero-summary" aria-label="站內資料摘要">
+        <span>{siteData.products.length} 個商品</span>
+        <span>{siteData.offers.length} 筆價格</span>
+        <span>{siteData.categories.length} 個分類</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="trends" class="site-shell section">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">熱門搜尋</span>
+        <h2>正在被比較的題材</h2>
+      </div>
+      <p>保留趨勢感，但不干擾購物判斷。</p>
+    </div>
+    <div class="chip-list">
+      {
+        topTrends.map((trend) => (
+          <a class="chip" href={sitePath(trend.relatedProductSlugs[0] ? `/compare/${trend.relatedProductSlugs[0]}/` : "/products/")}>
+            {trend.keyword}
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section id="categories" class="site-shell section">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">分類</span>
+        <h2>快速切換</h2>
+      </div>
+    </div>
+    <div class="chip-list">
+      {categoriesWithCounts.map((category) => <a class="chip" href={sitePath(`/category/${category.id}/`)}>{category.name} · {category.count}</a>)}
+    </div>
+  </section>
+
+  <section id="products" class="site-shell section">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">精選比價</span>
+        <h2>先看這些商品</h2>
+      </div>
+      <p>依價差排序，保留最有決策價值的資訊。</p>
+    </div>
+    <div class="grid product-grid">
+      {
+        featuredProducts.map(({ product, category, offers }) => (
+          <ProductCard product={product} category={category} offers={offers} stores={siteData.stores} />
+        ))
+      }
+    </div>
+    <div class="section-actions">
+      <a class="button secondary" href={sitePath("/products/")}>查看全部 {siteData.products.length} 個商品</a>
+    </div>
+  </section>
+</BaseLayout>

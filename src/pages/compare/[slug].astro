@@ -1,0 +1,161 @@
+---
+import PriceCard from "../../components/PriceCard.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { buildProductPageData, formatPrice, getDiscountSpread, getStore } from "../../lib/core/catalog";
+import { getSiteData } from "../../lib/core/loadSiteData";
+import { sitePath } from "../../lib/core/urls";
+import type { Product } from "../../lib/core/types";
+
+export async function getStaticPaths() {
+  const siteData = await getSiteData();
+
+  return siteData.products.map((product) => ({
+    params: { slug: product.slug },
+    props: { product },
+  }));
+}
+
+interface Props {
+  product: Product;
+}
+
+const { product } = Astro.props;
+const siteData = await getSiteData();
+const pageData = buildProductPageData(siteData, product);
+const sortedOffers = [...pageData.offers].sort((a, b) => a.price - b.price);
+const spread = getDiscountSpread(sortedOffers);
+const updatedAt = sortedOffers[0]?.fetchedAt ?? siteData.generatedAt;
+const bestStore = pageData.bestOffer ? getStore(siteData.stores, pageData.bestOffer.storeId) : undefined;
+const relatedProducts = siteData.products
+  .filter((item) => item.categoryId === product.categoryId && item.slug !== product.slug)
+  .slice(0, 4)
+  .map((item) => {
+    const offers = siteData.offers.filter((offer) => offer.productSlug === item.slug);
+    return {
+      product: item,
+      bestOffer: [...offers].sort((a, b) => a.price - b.price)[0],
+      spread: getDiscountSpread(offers),
+    };
+  });
+const title = `${product.name} 比價｜最低 ${pageData.bestOffer ? formatPrice(pageData.bestOffer.price) : "待更新"}｜Taiwan Price Radar`;
+const description = `${product.summary} 比較 ${sortedOffers.length} 個通路價格、規格重點與購買建議。`;
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: product.name,
+  description,
+  category: pageData.category.name,
+  offers: sortedOffers.map((offer) => ({
+    "@type": "Offer",
+    priceCurrency: offer.currency,
+    price: offer.price,
+    url: offer.url,
+    availability: "https://schema.org/InStock",
+    seller: {
+      "@type": "Organization",
+      name: getStore(siteData.stores, offer.storeId)?.name ?? offer.storeId,
+    },
+  })),
+};
+---
+
+<BaseLayout title={title} description={description} canonicalPath={`/compare/${product.slug}/`} structuredData={structuredData}>
+  <section class="site-shell section">
+    <div class="compare-layout">
+      <aside class="compare-summary">
+        <a class="text-link" href={sitePath("/")}>回首頁</a>
+        <span class="eyebrow">{pageData.category.name}</span>
+        <h1 class="page-title">{product.name}</h1>
+        <p class="lede">{product.summary}</p>
+        {
+          pageData.bestOffer && (
+            <div class="best-price">
+              <span class="muted">目前最低價</span>
+              <div class="price">{formatPrice(pageData.bestOffer.price)}</div>
+              <p>{bestStore?.name ?? pageData.bestOffer.storeId}</p>
+            </div>
+          )
+        }
+        <div class="compact-facts">
+          <span>{sortedOffers.length} 個通路</span>
+          {spread > 0 && <span>最高價差 {formatPrice(spread)}</span>}
+          <span>更新 {new Date(updatedAt).toLocaleDateString("zh-TW")}</span>
+        </div>
+      </aside>
+
+      <div>
+        <section class="panel simple-panel" aria-labelledby="offers-title">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">價格</span>
+              <h2 id="offers-title">通路比較</h2>
+            </div>
+          </div>
+          <div class="offer-list">
+            {
+              sortedOffers.map((offer) => (
+                <PriceCard offer={offer} store={getStore(siteData.stores, offer.storeId)} />
+              ))
+            }
+          </div>
+          <p class="fine-print">
+            價格、庫存、運費與活動條件請以來源頁面為準。
+          </p>
+        </section>
+
+        <section class="section" aria-labelledby="advice-title">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">提醒</span>
+              <h2 id="advice-title">購買建議</h2>
+            </div>
+          </div>
+          <p class="lede">{product.buyingAdvice}</p>
+          <dl class="spec-list">
+            {
+              Object.entries(product.specs).map(([label, value]) => (
+                <div class="spec-row">
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))
+            }
+          </dl>
+        </section>
+
+        <section class="section" aria-labelledby="related-title">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">同分類</span>
+              <h2 id="related-title">也可以比較</h2>
+            </div>
+            <a class="text-link" href={sitePath(`/category/${pageData.category.id}/`)}>看全部</a>
+          </div>
+          <div class="compact-product-list">
+            {
+              relatedProducts.map((item) => (
+                <a class="compact-product-row" href={sitePath(`/compare/${item.product.slug}/`)}>
+                  <span>{item.product.name}</span>
+                  <strong>{item.bestOffer ? formatPrice(item.bestOffer.price) : "待更新"}</strong>
+                  {item.spread > 0 && <small>價差 {formatPrice(item.spread)}</small>}
+                </a>
+              ))
+            }
+          </div>
+        </section>
+      </div>
+    </div>
+
+    {
+      pageData.bestOffer && (
+        <div class="sticky-cta">
+          <a class="button" href={pageData.bestOffer.url} rel="nofollow noopener noreferrer" target="_blank">
+            看最低價 {formatPrice(pageData.bestOffer.price)}
+          </a>
+          <a class="button secondary" href={sitePath("/")}>回首頁</a>
+        </div>
+      )
+    }
+  </section>
+</BaseLayout>

@@ -1,0 +1,19 @@
+---
+interface Props {
+  variant: string;
+  label: string;
+}
+
+const { variant, label } = Astro.props;
+
+const initials = label
+  .split(/\s+/)
+  .map((part) => part[0])
+  .join("")
+  .slice(0, 2)
+  .toUpperCase();
+---
+
+<div class:list={["product-visual", variant]} aria-hidden="true">
+  <span>{initials}</span>
+</div>

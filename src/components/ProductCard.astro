@@ -1,0 +1,40 @@
+---
+import { formatPrice, getDiscountSpread } from "../lib/core/catalog";
+import { sitePath } from "../lib/core/urls";
+import type { Category, Offer, Product, Store } from "../lib/core/types";
+
+interface Props {
+  product: Product;
+  category: Category;
+  offers: Offer[];
+  stores?: Store[];
+}
+
+const { product, category, offers, stores = [] } = Astro.props;
+const bestOffer = [...offers].sort((a, b) => a.price - b.price)[0];
+const bestStore = stores.find((store) => store.id === bestOffer?.storeId);
+const spread = getDiscountSpread(offers);
+const summary = product.summary.length > 46 ? `${product.summary.slice(0, 46)}...` : product.summary;
+---
+
+<article class="product-card">
+  <div class="product-card-main">
+    <a class="muted" href={sitePath(`/category/${category.id}/`)}>{category.name}</a>
+    <h3>{product.name}</h3>
+    <p>{summary}</p>
+  </div>
+  {
+    bestOffer && (
+      <div class="product-price-block">
+        <span class="muted">最低價</span>
+        <div class="price">{formatPrice(bestOffer.price)}</div>
+        <span class="muted">{bestStore?.name ?? bestOffer.storeId}</span>
+      </div>
+    )
+  }
+  <div class="product-meta">
+    <span>{offers.length} 個通路</span>
+    {spread > 0 && <span>價差 {formatPrice(spread)}</span>}
+  </div>
+  <a class="text-link" href={sitePath(`/compare/${product.slug}/`)}>查看價格</a>
+</article>

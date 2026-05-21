@@ -108,6 +108,29 @@ npm run build
 npm audit
 ```
 
+## 自動更新與部署
+
+GitHub Actions 會在兩種情況自動部署：
+
+- 推送到 `main`
+- 每 6 小時定時重新抓取 Google Trends Taiwan RSS，重新 build 並部署 GitHub Pages
+
+部署 workflow 位於：
+
+```text
+.github/workflows/deploy.yml
+```
+
+正式部署時會設定：
+
+```text
+SITE_URL=https://tobliao.github.io
+BASE_PATH=/compare-site
+REQUIRE_LIVE_TRENDS=true
+```
+
+`REQUIRE_LIVE_TRENDS=true` 代表正式部署必須成功抓到即時 Google Trends 資料；如果 Google Trends 暫時無法取得，workflow 會失敗而不是靜默使用 fallback seed，方便及早發現資料更新問題。
+
 ## 專案架構
 
 ```text

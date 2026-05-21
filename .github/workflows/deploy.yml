@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  schedule:
+    # Refresh the static site every 6 hours with the latest crawl.
+    - cron: "17 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,6 +27,7 @@ jobs:
     env:
       SITE_URL: https://tobliao.github.io
       BASE_PATH: /compare-site
+      REQUIRE_LIVE_TRENDS: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,7 +47,7 @@ jobs:
       - name: Type check
         run: npm run check
 
-      - name: Build static site
+      - name: Build static site with latest crawl
         run: npm run build
 
       - name: Configure Pages

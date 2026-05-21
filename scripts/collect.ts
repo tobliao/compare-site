@@ -11,6 +11,7 @@ import {
 } from "../src/lib/plugins/seedCatalog";
 
 const outputPath = resolve("data/site.json");
+const requireLiveTrends = process.env.REQUIRE_LIVE_TRENDS === "true";
 
 async function collectSiteData(): Promise<SiteData> {
   const [stores, products, offers, manualTrends] = await Promise.all([
@@ -35,8 +36,17 @@ async function collectSiteData(): Promise<SiteData> {
 async function collectTrends(products: Product[], fallbackTrends: Trend[]): Promise<Trend[]> {
   try {
     const googleTrends = await createGoogleTrendsPlugin(products).collect();
+
+    if (googleTrends.length === 0) {
+      throw new Error("Google Trends returned no items.");
+    }
+
     return dedupeTrends([...googleTrends, ...fallbackTrends]);
   } catch (error) {
+    if (requireLiveTrends) {
+      throw error;
+    }
+
     console.warn(`Google Trends collection failed, using seed trends only: ${formatError(error)}`);
     return fallbackTrends;
   }

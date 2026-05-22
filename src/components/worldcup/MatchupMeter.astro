@@ -1,0 +1,45 @@
+---
+import { getTeamLabel } from "../../lib/worldcup/helpers";
+import type { MatchupMetricProfile } from "../../lib/worldcup/metrics";
+import SourceConfidenceBadge from "./SourceConfidenceBadge.astro";
+
+interface Props {
+  profile: MatchupMetricProfile;
+}
+
+const { profile } = Astro.props;
+---
+
+<article class="wc-chart-card">
+  <div class="wc-chart-heading">
+    <div>
+      <span class="wc-kicker">Matchup Meter</span>
+      <h3>{profile.decisiveQuestion}</h3>
+    </div>
+    <SourceConfidenceBadge confidence={profile.confidence} />
+  </div>
+  <div class="wc-meter-labels">
+    <strong>{getTeamLabel(profile.leftTeamSlug)}</strong>
+    <strong>{getTeamLabel(profile.rightTeamSlug)}</strong>
+  </div>
+  <div class="wc-meter-list">
+    {
+      profile.meters.map((meter) => (
+        <div class="wc-meter-row">
+          <div class="wc-meter-title">
+            <span>{meter.label}</span>
+            <small>{meter.read}</small>
+          </div>
+          <div class="wc-meter-bars">
+            <i class="left" style={`width: ${meter.leftValue}%`}></i>
+            <i class="right" style={`width: ${meter.rightValue}%`}></i>
+          </div>
+          <div class="wc-meter-values">
+            <strong>{meter.leftValue}</strong>
+            <strong>{meter.rightValue}</strong>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</article>

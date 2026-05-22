@@ -1,0 +1,34 @@
+---
+import { getTimelineScore } from "../../lib/worldcup/metrics";
+import type { HistoricalCycle } from "../../lib/worldcup/types";
+
+interface Props {
+  cycles: HistoricalCycle[];
+  title?: string;
+}
+
+const { cycles, title = "近三屆世界盃走勢" } = Astro.props;
+---
+
+<article class="wc-chart-card">
+  <div class="wc-chart-heading">
+    <div>
+      <span class="wc-kicker">Tournament Timeline</span>
+      <h3>{title}</h3>
+    </div>
+  </div>
+  <div class="wc-timeline-chart">
+    {
+      cycles.map((cycle) => (
+        <div class="wc-timeline-bar">
+          <span>{cycle.year}</span>
+          <div class="wc-bar-track" aria-label={`${cycle.year} ${cycle.result}`}>
+            <i style={`width: ${getTimelineScore(cycle)}%`}></i>
+          </div>
+          <strong>{cycle.result}</strong>
+          <p>{cycle.note}</p>
+        </div>
+      ))
+    }
+  </div>
+</article>

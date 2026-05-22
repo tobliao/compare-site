@@ -1,0 +1,32 @@
+---
+import { sitePath } from "../../lib/core/urls";
+import type { RelatedLink } from "../../lib/worldcup/metrics";
+
+interface Props {
+  links: RelatedLink[];
+  title?: string;
+}
+
+const { links, title = "你可能也想看" } = Astro.props;
+---
+
+{
+  links.length > 0 && (
+    <section class="wc-related-panel" aria-label={title}>
+      <div class="wc-section-heading compact">
+        <div>
+          <span class="wc-kicker">Next Reads</span>
+          <h2>{title}</h2>
+        </div>
+      </div>
+      <div class="wc-related-grid">
+        {links.map((link) => (
+          <a href={sitePath(link.href)} class="wc-related-card">
+            <span>{link.meta}</span>
+            <strong>{link.label}</strong>
+          </a>
+        ))}
+      </div>
+    </section>
+  )
+}

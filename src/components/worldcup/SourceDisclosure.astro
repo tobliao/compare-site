@@ -1,0 +1,35 @@
+---
+import { formatWorldCupUpdatedDate, sourceTierLabel } from "../../lib/worldcup/helpers";
+import { sitePath } from "../../lib/core/urls";
+import type { WorldCupSource } from "../../lib/worldcup/types";
+
+interface Props {
+  sources: WorldCupSource[];
+  compact?: boolean;
+}
+
+const { sources, compact = false } = Astro.props;
+---
+
+<aside class:list={["wc-disclosure", compact && "compact"]} aria-label="資料來源與使用聲明">
+  <div>
+    <span class="wc-kicker">資料來源與邊界</span>
+    <h2>資訊分析，不是下注建議</h2>
+    <p>
+      本區使用官方、公開資料與可信資料站整理賽事背景。MVP 階段不接付費 API、不提供 odds、盘口、下注方向或博彩導流。
+      最後更新：{formatWorldCupUpdatedDate()}。
+    </p>
+    <a class="wc-disclosure-link" href={sitePath("/worldcup/sources/")}>查看完整資料來源與使用聲明</a>
+  </div>
+  <div class="wc-source-list">
+    {
+      sources.map((source) => (
+        <a href={source.url} target="_blank" rel="noreferrer" class="wc-source-card">
+          <span>{sourceTierLabel(source)}</span>
+          <strong>{source.name}</strong>
+          <small>{source.usage}</small>
+        </a>
+      ))
+    }
+  </div>
+</aside>

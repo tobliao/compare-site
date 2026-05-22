@@ -1,0 +1,43 @@
+---
+import type { PlayerRoleProfile } from "../../lib/worldcup/metrics";
+import SourceConfidenceBadge from "./SourceConfidenceBadge.astro";
+
+interface Props {
+  profile: PlayerRoleProfile;
+}
+
+const { profile } = Astro.props;
+---
+
+<article class="wc-chart-card wc-role-card">
+  <div class="wc-chart-heading">
+    <div>
+      <span class="wc-kicker">Player Role</span>
+      <h3>{profile.roleType}</h3>
+    </div>
+    <SourceConfidenceBadge confidence={profile.confidence} />
+  </div>
+  <div class="wc-role-core">
+    <div>
+      <span>影響區域</span>
+      <strong>{profile.impactZone}</strong>
+    </div>
+    <div>
+      <span>{profile.oneNumber.label}</span>
+      <strong>{profile.oneNumber.value}</strong>
+    </div>
+  </div>
+  <p>{profile.editorialRead}</p>
+  <div class="wc-role-traits">
+    {
+      profile.traits.map((trait) => (
+        <div>
+          <span>{trait.label}</span>
+          <i style={`width: ${trait.value}%`}></i>
+          <strong>{trait.value}</strong>
+          <small>{trait.note}</small>
+        </div>
+      ))
+    }
+  </div>
+</article>

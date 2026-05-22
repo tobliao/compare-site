@@ -1,0 +1,74 @@
+---
+import SourceConfidenceBadge from "./SourceConfidenceBadge.astro";
+import type { TeamMetricProfile } from "../../lib/worldcup/metrics";
+
+interface Props {
+  profile: TeamMetricProfile;
+  title?: string;
+}
+
+const { profile, title = "Team Radar" } = Astro.props;
+const size = 220;
+const center = size / 2;
+const radius = 82;
+const angleStep = (Math.PI * 2) / profile.radar.length;
+
+const axisPoints = profile.radar.map((metric, index) => {
+  const angle = -Math.PI / 2 + index * angleStep;
+  return {
+    ...metric,
+    x: center + Math.cos(angle) * radius,
+    y: center + Math.sin(angle) * radius,
+    labelX: center + Math.cos(angle) * (radius + 23),
+    labelY: center + Math.sin(angle) * (radius + 23),
+  };
+});
+
+const polygonPoints = profile.radar
+  .map((metric, index) => {
+    const angle = -Math.PI / 2 + index * angleStep;
+    const pointRadius = radius * (metric.value / 100);
+    return `${center + Math.cos(angle) * pointRadius},${center + Math.sin(angle) * pointRadius}`;
+  })
+  .join(" ");
+---
+
+<article class="wc-chart-card wc-radar-card">
+  <div class="wc-chart-heading">
+    <div>
+      <span class="wc-kicker">{title}</span>
+      <h3>{profile.headline}</h3>
+    </div>
+    <SourceConfidenceBadge confidence={profile.confidence} />
+  </div>
+  <div class="wc-radar-layout">
+    <svg class="wc-radar" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="隊伍五項指標雷達圖">
+      <polygon class="wc-radar-grid" points={axisPoints.map((point) => `${point.x},${point.y}`).join(" ")} />
+      {axisPoints.map((point) => <line class="wc-radar-axis" x1={center} y1={center} x2={point.x} y2={point.y} />)}
+      <polygon class="wc-radar-shape" points={polygonPoints} />
+      {
+        axisPoints.map((point) => (
+          <text x={point.labelX} y={point.labelY} text-anchor="middle" dominant-baseline="middle">
+            {point.label}
+          </text>
+        ))
+      }
+    </svg>
+    <div class="wc-metric-list">
+      {
+        profile.radar.map((metric) => (
+          <div class="wc-metric-row">
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
+            <small>{metric.note}</small>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+  <div class="wc-one-number">
+    <span>{profile.oneNumber.label}</span>
+    <strong>{profile.oneNumber.value}</strong>
+    <p>{profile.oneNumber.note}</p>
+  </div>
+</article>

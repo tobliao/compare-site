@@ -1,0 +1,87 @@
+---
+import SourceDisclosure from "../../components/worldcup/SourceDisclosure.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { absoluteSiteUrl, sitePath } from "../../lib/core/urls";
+import { worldCupSources } from "../../lib/worldcup/data";
+import { formatWorldCupUpdatedDate, sourceTierLabel } from "../../lib/worldcup/helpers";
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: "世界盃賽事分析資料來源與使用聲明",
+  inLanguage: "zh-Hant-TW",
+  url: absoluteSiteUrl("/worldcup/sources/", Astro.site),
+};
+---
+
+<BaseLayout
+  title="世界盃資料來源與使用聲明 | 賽事分析"
+  description="說明 2026 World Cup 賽事分析分頁的資料來源優先順序、更新方式與合規內容邊界。"
+  canonicalPath="/worldcup/sources/"
+  structuredData={structuredData}
+>
+  <section class="wc-page-hero">
+    <div class="site-shell wc-page-hero-inner">
+      <div>
+        <a class="wc-back-link" href={sitePath("/worldcup/")}>← 回到 World Cup Hub</a>
+        <span class="wc-kicker">Sources & Compliance</span>
+        <h1>資料可以有觀點，但來源要講清楚。</h1>
+        <p>
+          本頁說明世界盃賽事分析的資料來源、更新方式與內容邊界。最後更新：{formatWorldCupUpdatedDate()}。
+        </p>
+      </div>
+      <aside class="wc-scorecard">
+        <span>MVP 原則</span>
+        <strong>官方/公開資料優先</strong>
+        <small>不接付費 API，不呈現 odds，不提供下注建議。</small>
+      </aside>
+    </div>
+  </section>
+
+  <section class="site-shell wc-section wc-two-column">
+    <article class="wc-panel">
+      <span class="wc-kicker">Source Policy</span>
+      <h2>資料來源優先順序</h2>
+      <ul class="wc-list">
+        <li>第一順位：FIFA 官方頁、FIFA Training Centre、官方技術報告、官方公告名單與賽程。</li>
+        <li>第二順位：StatsBomb Open Data、Opta Analyst、Sofascore、FotMob、Transfermarkt 等可信公開資料站。</li>
+        <li>第三順位：一般媒體或農場文只做背景參考，不作核心數據，且需標示可信度。</li>
+      </ul>
+    </article>
+    <article class="wc-panel">
+      <span class="wc-kicker">Content Boundary</span>
+      <h2>合規邊界</h2>
+      <ul class="wc-list">
+        <li>不提供下注建議、盘口推薦、賠率比較或博彩導流。</li>
+        <li>可以提供隊伍狀態、球員角色、歷史戰績、戰術對位與賽前觀察。</li>
+        <li>未確認的球員資訊以 watchlist 或 final-squad-pending 標示，不寫成最終名單。</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="site-shell wc-section">
+    <div class="wc-section-heading">
+      <div>
+        <span class="wc-kicker">Source Registry</span>
+        <h2>目前列入的來源</h2>
+      </div>
+      <p>來源清單會隨 GitHub Actions 更新與後續資料擴充逐步調整。</p>
+    </div>
+    <div class="wc-source-list">
+      {
+        worldCupSources.map((source) => (
+          <a href={source.url} target="_blank" rel="noreferrer" class="wc-source-card light">
+            <span>{sourceTierLabel(source)}</span>
+            <strong>{source.name}</strong>
+            <small>{source.usage}</small>
+            <small>檢查日期：{source.lastChecked}</small>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="site-shell wc-section">
+    <SourceDisclosure sources={worldCupSources.slice(0, 5)} compact />
+  </section>
+</BaseLayout>

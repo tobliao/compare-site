@@ -7,6 +7,7 @@ interface Props {
   description: string;
   canonicalPath?: string;
   structuredData?: Record<string, unknown> | Array<Record<string, unknown>>;
+  siteName?: string;
 }
 
 const {
@@ -14,10 +15,11 @@ const {
   description,
   canonicalPath = Astro.url.pathname,
   structuredData,
+  siteName = "Global Analytics",
 } = Astro.props;
 
-const siteName = "Taiwan Price Radar";
 const canonicalUrl = absoluteSiteUrl(canonicalPath, Astro.site);
+const isWorldCupSection = Astro.url.pathname.includes("/worldcup");
 ---
 
 <!doctype html>
@@ -39,14 +41,31 @@ const canonicalUrl = absoluteSiteUrl(canonicalPath, Astro.site);
   </head>
   <body>
     <header class="site-shell site-header">
-      <a class="brand" href={sitePath("/")} aria-label="Taiwan Price Radar 首頁">
-        <span class="brand-mark">PR</span>
-        <span>Price Radar</span>
+      <a class="brand" href={sitePath("/")} aria-label="Global Analytics 首頁">
+        <span class="brand-mark">GA</span>
+        <span>Global Analytics</span>
       </a>
+      <div class="app-switch" aria-label="網站分區">
+        <a href={sitePath("/")} aria-current={!isWorldCupSection ? "page" : undefined}>比價網</a>
+        <a href={sitePath("/worldcup/")} aria-current={isWorldCupSection ? "page" : undefined}>賽事分析</a>
+      </div>
       <nav class="nav-links" aria-label="主要導覽">
-        <a href={sitePath("/products/")}>全部商品</a>
-        <a href={sitePath("/#trends")}>熱門</a>
-        <a href={sitePath("/#categories")}>分類</a>
+        {
+          isWorldCupSection ? (
+            <>
+              <a href={sitePath("/worldcup/")}>World Cup Hub</a>
+              <a href={sitePath("/worldcup/#teams")}>隊伍</a>
+              <a href={sitePath("/worldcup/#players")}>球員</a>
+              <a href={sitePath("/worldcup/#matchups")}>對位</a>
+            </>
+          ) : (
+            <>
+              <a href={sitePath("/products/")}>全部商品</a>
+              <a href={sitePath("/#trends")}>熱門</a>
+              <a href={sitePath("/#categories")}>分類</a>
+            </>
+          )
+        }
       </nav>
     </header>
     <main>

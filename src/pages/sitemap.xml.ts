@@ -2,6 +2,8 @@ import type { APIRoute } from "astro";
 import { getSiteData } from "../lib/core/loadSiteData";
 import { absoluteSiteUrl } from "../lib/core/urls";
 import { topics } from "../lib/plugins/topicCatalog";
+import { worldCupMatchups, worldCupPlayers, worldCupTeams } from "../lib/worldcup/data";
+import { worldCupTopicPages } from "../lib/worldcup/topics";
 
 export const GET: APIRoute = async ({ site }) => {
   const siteData = await getSiteData();
@@ -10,6 +12,24 @@ export const GET: APIRoute = async ({ site }) => {
     { loc: absoluteSiteUrl("/products/", site), priority: "0.9" },
     { loc: absoluteSiteUrl("/trends/", site), priority: "0.9" },
     { loc: absoluteSiteUrl("/deals/", site), priority: "0.9" },
+    { loc: absoluteSiteUrl("/worldcup/", site), priority: "0.95" },
+    { loc: absoluteSiteUrl("/worldcup/sources/", site), priority: "0.75" },
+    ...worldCupTeams.map((team) => ({
+      loc: absoluteSiteUrl(`/worldcup/teams/${team.slug}/`, site),
+      priority: "0.85",
+    })),
+    ...worldCupPlayers.map((player) => ({
+      loc: absoluteSiteUrl(`/worldcup/players/${player.slug}/`, site),
+      priority: "0.8",
+    })),
+    ...worldCupMatchups.map((matchup) => ({
+      loc: absoluteSiteUrl(`/worldcup/matchups/${matchup.slug}/`, site),
+      priority: "0.85",
+    })),
+    ...worldCupTopicPages.map((topic) => ({
+      loc: absoluteSiteUrl(`/worldcup/topics/${topic.slug}/`, site),
+      priority: "0.86",
+    })),
     ...topics.map((topic) => ({
       loc: absoluteSiteUrl(`/topics/${topic.slug}/`, site),
       priority: "0.85",

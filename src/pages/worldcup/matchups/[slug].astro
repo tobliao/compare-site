@@ -1,0 +1,229 @@
+---
+import MatchupMeter from "../../../components/worldcup/MatchupMeter.astro";
+import RelatedLinks from "../../../components/worldcup/RelatedLinks.astro";
+import SignalBoard from "../../../components/worldcup/SignalBoard.astro";
+import SourceDisclosure from "../../../components/worldcup/SourceDisclosure.astro";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { absoluteSiteUrl, sitePath } from "../../../lib/core/urls";
+import { worldCupMatchups } from "../../../lib/worldcup/data";
+import {
+  getPlayerLabel,
+  getSources,
+  getTeamLabel,
+  getWorldCupPlayer,
+  getWorldCupTeam,
+} from "../../../lib/worldcup/helpers";
+import { getMatchupMetricProfile, getMatchupSignals, getRelatedLinksForMatchup } from "../../../lib/worldcup/metrics";
+import type { WorldCupMatchup } from "../../../lib/worldcup/types";
+
+export function getStaticPaths() {
+  return worldCupMatchups.map((matchup) => ({
+    params: { slug: matchup.slug },
+    props: { matchup },
+  }));
+}
+
+interface Props {
+  matchup: WorldCupMatchup;
+}
+
+const { matchup } = Astro.props;
+const teams = matchup.teamSlugs.map(getWorldCupTeam).filter((team) => team !== undefined);
+const players = matchup.playerSlugs.map(getWorldCupPlayer).filter((player) => player !== undefined);
+const metricProfile = getMatchupMetricProfile(matchup.slug);
+const relatedLinks = getRelatedLinksForMatchup(matchup.slug);
+const sources = getSources([
+  ...matchup.sourceIds,
+  ...teams.flatMap((team) => team.sourceIds),
+  ...players.flatMap((player) => player.sourceIds),
+]);
+
+const matchupFaqs = [
+  {
+    question: `${matchup.title} 最重要的觀察點是什麼？`,
+    answer: `${metricProfile.decisiveQuestion} 本頁用對位條、位置對抗與賽前訊號整理，不提供勝負或下注方向。`,
+  },
+  {
+    question: "這篇對位分析會使用 odds 或市場資料嗎？",
+    answer: "不會。本站避免 odds、盘口、下注建議與博彩導流，只做資訊分析與戰術觀察。",
+  },
+];
+const structuredData = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: matchup.title,
+    description: matchup.summary,
+    inLanguage: "zh-Hant-TW",
+    url: absoluteSiteUrl(`/worldcup/matchups/${matchup.slug}/`, Astro.site),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: matchupFaqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "賽事分析",
+        item: absoluteSiteUrl("/worldcup/", Astro.site),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: matchup.title,
+        item: absoluteSiteUrl(`/worldcup/matchups/${matchup.slug}/`, Astro.site),
+      },
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title={`${matchup.title} | 世界盃對位分析`}
+  description={`${matchup.title}：整理節奏判讀、位置對位、關鍵球員與賽前觀察。資訊分析用途，不提供下注建議。`}
+  canonicalPath={`/worldcup/matchups/${matchup.slug}/`}
+  structuredData={structuredData}
+>
+  <section class="wc-page-hero">
+    <div class="site-shell wc-page-hero-inner">
+      <div>
+        <a class="wc-back-link" href={sitePath("/worldcup/#matchups")}>← 回到對位列表</a>
+        <span class="wc-kicker">{matchup.stage}</span>
+        <h1>{matchup.title}</h1>
+        <p>{matchup.summary}</p>
+      </div>
+      <aside class="wc-scorecard">
+        <span>Teams</span>
+        <strong>{matchup.teamSlugs.map(getTeamLabel).join(" vs ")}</strong>
+        <small>{metricProfile.decisiveQuestion}</small>
+      </aside>
+    </div>
+  </section>
+
+  <section class="site-shell wc-section">
+    <MatchupMeter profile={metricProfile} />
+  </section>
+
+  <section class="site-shell wc-section wc-two-column">
+    <article class="wc-panel">
+      <span class="wc-kicker">Tempo Read</span>
+      <h2>節奏怎麼走，內容就會不一樣</h2>
+      <p>{matchup.tempoRead}</p>
+    </article>
+    <article class="wc-panel">
+      <span class="wc-kicker">Signals</span>
+      <h2>賽前可以觀察的訊號</h2>
+      <ul class="wc-list">
+        {matchup.watchSignals.map((signal) => <li>{signal}</li>)}
+      </ul>
+    </article>
+  </section>
+
+  <section class="site-shell wc-section">
+    <SignalBoard signals={getMatchupSignals(matchup.slug)} title="這場賽前該追的訊號" intro="把對位拆成可回訪的情報點，而不是直接給單一結論。" />
+  </section>
+
+  <section class="site-shell wc-section">
+    <div class="wc-section-heading">
+      <div>
+        <span class="wc-kicker">Position Duels</span>
+        <h2>這場可能被哪個位置決定</h2>
+      </div>
+    </div>
+    <div class="wc-duel-grid">
+      {
+        matchup.positionDuels.map((duel) => (
+          <article class="wc-duel-card">
+            <span>{duel.label}</span>
+            <p>{duel.summary}</p>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="site-shell wc-section">
+    <div class="wc-section-heading">
+      <div>
+        <span class="wc-kicker">Players To Watch</span>
+        <h2>關鍵球員</h2>
+      </div>
+      <p>這些球員不一定代表勝負結論，但會改變防線站位、比賽速度與攻守風險。</p>
+    </div>
+    <div class="wc-player-grid">
+      {
+        players.map((player) => (
+          <a class="wc-player-card" href={sitePath(`/worldcup/players/${player.slug}/`)}>
+            <span>{player.position} · {getTeamLabel(player.teamSlug)}</span>
+            <h3>{getPlayerLabel(player.slug)}</h3>
+            <p>{player.matchupFocus}</p>
+            <small>{player.club}</small>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="site-shell wc-section">
+    <div class="wc-section-heading">
+      <div>
+        <span class="wc-kicker">Team Pages</span>
+        <h2>往隊伍頁繼續看</h2>
+      </div>
+    </div>
+    <div class="wc-team-grid">
+      {
+        teams.map((team) => (
+          <a class="wc-team-card" href={sitePath(`/worldcup/teams/${team.slug}/`)}>
+            <span>{team.shortName} · {team.confederation}</span>
+            <h3>{team.name}</h3>
+            <p>{team.style}</p>
+            <div class="wc-card-meta">
+              <small>{team.bestFinish}</small>
+              <small>{team.watchPoints[0]}</small>
+            </div>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="site-shell wc-section">
+    <RelatedLinks links={relatedLinks} />
+  </section>
+
+  <section class="site-shell wc-section">
+    <div class="wc-section-heading">
+      <div>
+        <span class="wc-kicker">FAQ</span>
+        <h2>快速理解這組對位</h2>
+      </div>
+    </div>
+    <div class="faq-list">
+      {
+        matchupFaqs.map((faq) => (
+          <article class="faq-item">
+            <h3>{faq.question}</h3>
+            <p>{faq.answer}</p>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="site-shell wc-section">
+    <SourceDisclosure sources={sources} compact />
+  </section>
+</BaseLayout>

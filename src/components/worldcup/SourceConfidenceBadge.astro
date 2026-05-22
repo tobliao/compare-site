@@ -1,0 +1,18 @@
+---
+import type { ConfidenceLevel } from "../../lib/worldcup/metrics";
+
+interface Props {
+  confidence: ConfidenceLevel;
+}
+
+const { confidence } = Astro.props;
+
+const labelMap: Record<ConfidenceLevel, string> = {
+  official: "官方資料",
+  "open-data": "公開資料",
+  curated: "人工整理",
+  watchlist: "待官方確認",
+};
+---
+
+<span class={`wc-confidence wc-confidence-${confidence}`}>{labelMap[confidence]}</span>

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import { chishaArea, chishaPopularCategories, chishaSearchSeeds } from "@chisha/data/xitunFeed";
 import type { ChishaDataStatus, ChishaPhoto, ChishaPlace, ChishaReview, ChishaSiteData } from "@chisha/core/types";
@@ -8,10 +8,17 @@ const crawlReportPath = resolve("data/chisha/crawl-report.json");
 const photoOutputDir = resolve("public/chisha/photos");
 const apiKey = process.env.GOOGLE_MAPS_API_KEY;
 const requireLiveData = process.env.REQUIRE_CHISHA_LIVE_DATA === "true";
-const targetPlaces = Number.parseInt(process.env.CHISHA_TARGET_PLACES ?? process.env.CHISHA_MAX_PLACES ?? "24", 10);
-const maxNewPlacesPerRun = Number.parseInt(process.env.CHISHA_MAX_NEW_PLACES_PER_RUN ?? "8", 10);
-const maxPhotosPerPlace = Number.parseInt(process.env.CHISHA_MAX_PHOTOS_PER_PLACE ?? "1", 10);
-const maxSearchResultsPerQuery = Number.parseInt(process.env.CHISHA_SEARCH_RESULTS_PER_QUERY ?? "20", 10);
+const targetPlaces = readIntEnv("CHISHA_TARGET_PLACES", process.env.CHISHA_MAX_PLACES ?? "24");
+const maxNewPlacesPerRun = readIntEnv("CHISHA_MAX_NEW_PLACES_PER_RUN", "4");
+const maxPhotosPerPlace = readIntEnv("CHISHA_MAX_PHOTOS_PER_PLACE", "1");
+const maxSearchResultsPerQuery = readIntEnv("CHISHA_SEARCH_RESULTS_PER_QUERY", "10");
+const maxSearchRequestsPerRun = readIntEnv("CHISHA_MAX_SEARCH_REQUESTS_PER_RUN", String(chishaSearchSeeds.length));
+const maxPlaceDetailRequestsPerRun = readIntEnv("CHISHA_MAX_PLACE_DETAILS_PER_RUN", String(maxNewPlacesPerRun));
+const maxExistingRefreshesPerRun = readIntEnv("CHISHA_MAX_EXISTING_REFRESHES_PER_RUN", "4");
+const maxChangedPlaceDetailsPerRun = readIntEnv("CHISHA_MAX_CHANGED_PLACE_DETAILS_PER_RUN", "2");
+const maxPhotoDownloadRequestsPerRun = readIntEnv("CHISHA_MAX_PHOTO_DOWNLOADS_PER_RUN", "2");
+const refreshExistingAfterDays = readIntEnv("CHISHA_REFRESH_EXISTING_AFTER_DAYS", "7");
+const forceRefreshExisting = process.env.CHISHA_FORCE_REFRESH_EXISTING === "true";
 const placesBaseUrl = "https://places.googleapis.com/v1";
 
 interface GoogleTextSearchResponse {
@@ -39,6 +46,12 @@ interface GooglePlace {
   internationalPhoneNumber?: string;
   photos?: GooglePhoto[];
   reviews?: GoogleReview[];
+}
+
+interface GooglePlaceSummary {
+  id?: string;
+  rating?: number;
+  userRatingCount?: number;
 }
 
 interface GooglePhoto {
@@ -78,6 +91,24 @@ interface CollectionResult {
   queryCount: number;
   reusedPlaceCount: number;
   newPlaceCount: number;
+  refreshedPlaceCount: number;
+  changedPlaceCount: number;
+  searchRequestCount: number;
+  summaryRequestCount: number;
+  detailRequestCount: number;
+  photoDownloadRequestCount: number;
+  skippedByBudgetCount: number;
+}
+
+interface RunBudget {
+  searchRequests: number;
+  summaryRequests: number;
+  detailRequests: number;
+  changedPlaceDetails: number;
+  photoDownloadRequests: number;
+  skippedByBudget: number;
+  refreshedPlaces: number;
+  changedPlaces: number;
 }
 
 async function collectChishaData(): Promise<ChishaSiteData> {
@@ -101,6 +132,13 @@ async function collectChishaData(): Promise<ChishaSiteData> {
       placeCount: result.places.length,
       reusedPlaceCount: result.reusedPlaceCount,
       newPlaceCount: result.newPlaceCount,
+      refreshedPlaceCount: result.refreshedPlaceCount,
+      changedPlaceCount: result.changedPlaceCount,
+      searchRequestCount: result.searchRequestCount,
+      summaryRequestCount: result.summaryRequestCount,
+      detailRequestCount: result.detailRequestCount,
+      photoDownloadRequestCount: result.photoDownloadRequestCount,
+      skippedByBudgetCount: result.skippedByBudgetCount,
       reviewCount: stats.reviewCount,
       photoCount: stats.photoCount,
       warnings: result.warnings,
@@ -125,6 +163,7 @@ async function collectPlaces(generatedAt: string, existingData: ChishaSiteData |
   const places = existingPlaces.slice(0, targetPlaces);
   const existingByPlaceId = new Map(existingPlaces.map((place) => [place.googlePlaceId, place]));
   const seen = new Set(places.map((place) => place.googlePlaceId));
+  const budget = createRunBudget();
   let queryCount = 0;
   let newPlaceCount = 0;
 
@@ -143,27 +182,44 @@ async function collectPlaces(generatedAt: string, existingData: ChishaSiteData |
       queryCount,
       reusedPlaceCount: places.length,
       newPlaceCount,
+      ...budgetResult(budget),
     };
   }
 
   await mkdir(photoOutputDir, { recursive: true });
+  await backfillCachedPhotoFiles(places, budget, warnings);
 
   if (places.length >= targetPlaces) {
-    warnings.push(`Reused ${places.length} cached places and skipped Google Places search because the ${targetPlaces}-place target is already met.`);
+    const refreshedPlaces = await refreshExistingPlaces(places, generatedAt, budget, warnings, errors);
+
+    if (refreshedPlaces === 0) {
+      warnings.push(`Reused ${places.length} cached places and skipped Google Places search because the ${targetPlaces}-place target is already met.`);
+    }
 
     return {
-      status: "cached",
+      status: errors.length > 0 ? "error" : budget.changedPlaces > 0 ? "live" : "cached",
       places,
       warnings,
       errors,
       queryCount,
       reusedPlaceCount: places.length,
       newPlaceCount,
+      ...budgetResult(budget),
     };
   }
 
   for (const query of chishaSearchSeeds) {
+    if (
+      places.length >= targetPlaces ||
+      newPlaceCount >= maxNewPlacesPerRun ||
+      budget.searchRequests >= maxSearchRequestsPerRun ||
+      budget.detailRequests >= maxPlaceDetailRequestsPerRun
+    ) {
+      break;
+    }
+
     try {
+      budget.searchRequests += 1;
       const searchResult = await searchPlaces(query);
       queryCount += 1;
       const candidates = searchResult.places ?? [];
@@ -183,8 +239,14 @@ async function collectPlaces(generatedAt: string, existingData: ChishaSiteData |
           continue;
         }
 
+        if (budget.detailRequests >= maxPlaceDetailRequestsPerRun) {
+          budget.skippedByBudget += 1;
+          break;
+        }
+
+        budget.detailRequests += 1;
         const detail = await getPlaceDetails(placeId);
-        const normalized = await normalizePlace(detail, generatedAt);
+        const normalized = await normalizePlace(detail, generatedAt, undefined, budget);
 
         if (normalized) {
           places.push(normalized);
@@ -195,9 +257,22 @@ async function collectPlaces(generatedAt: string, existingData: ChishaSiteData |
       errors.push(`${query}: ${formatError(error)}`);
     }
 
-    if (places.length >= targetPlaces || newPlaceCount >= maxNewPlacesPerRun) {
+    if (
+      places.length >= targetPlaces ||
+      newPlaceCount >= maxNewPlacesPerRun ||
+      budget.searchRequests >= maxSearchRequestsPerRun ||
+      budget.detailRequests >= maxPlaceDetailRequestsPerRun
+    ) {
       break;
     }
+  }
+
+  if (budget.searchRequests >= maxSearchRequestsPerRun && places.length < targetPlaces && newPlaceCount < maxNewPlacesPerRun) {
+    warnings.push(`Stopped Google Places search after ${budget.searchRequests}/${maxSearchRequestsPerRun} budgeted search requests.`);
+  }
+
+  if (budget.detailRequests >= maxPlaceDetailRequestsPerRun && places.length < targetPlaces && newPlaceCount < maxNewPlacesPerRun) {
+    warnings.push(`Stopped full place detail calls after ${budget.detailRequests}/${maxPlaceDetailRequestsPerRun} budgeted requests.`);
   }
 
   if (places.length < targetPlaces) {
@@ -218,18 +293,145 @@ async function collectPlaces(generatedAt: string, existingData: ChishaSiteData |
       queryCount,
       reusedPlaceCount: 0,
       newPlaceCount,
+      ...budgetResult(budget),
     };
   }
 
   return {
-    status: errors.length > 0 ? "error" : "live",
+    status: errors.length > 0 ? "error" : newPlaceCount > 0 || budget.changedPlaces > 0 ? "live" : "cached",
     places,
     warnings,
     errors,
     queryCount,
     reusedPlaceCount: Math.min(existingPlaces.length, places.length - newPlaceCount),
     newPlaceCount,
+    ...budgetResult(budget),
   };
+}
+
+function createRunBudget(): RunBudget {
+  return {
+    searchRequests: 0,
+    summaryRequests: 0,
+    detailRequests: 0,
+    changedPlaceDetails: 0,
+    photoDownloadRequests: 0,
+    skippedByBudget: 0,
+    refreshedPlaces: 0,
+    changedPlaces: 0,
+  };
+}
+
+function budgetResult(budget: RunBudget): Pick<
+  CollectionResult,
+  | "refreshedPlaceCount"
+  | "changedPlaceCount"
+  | "searchRequestCount"
+  | "summaryRequestCount"
+  | "detailRequestCount"
+  | "photoDownloadRequestCount"
+  | "skippedByBudgetCount"
+> {
+  return {
+    refreshedPlaceCount: budget.refreshedPlaces,
+    changedPlaceCount: budget.changedPlaces,
+    searchRequestCount: budget.searchRequests,
+    summaryRequestCount: budget.summaryRequests,
+    detailRequestCount: budget.detailRequests,
+    photoDownloadRequestCount: budget.photoDownloadRequests,
+    skippedByBudgetCount: budget.skippedByBudget,
+  };
+}
+
+async function refreshExistingPlaces(
+  places: ChishaPlace[],
+  generatedAt: string,
+  budget: RunBudget,
+  warnings: string[],
+  errors: string[],
+): Promise<number> {
+  const candidates = places
+    .map((place, index) => ({ place, index }))
+    .filter(({ place }) => shouldRefreshPlace(place, generatedAt))
+    .sort((left, right) => lastCheckedTime(left.place) - lastCheckedTime(right.place));
+
+  if (candidates.length === 0) {
+    return 0;
+  }
+
+  for (const { place, index } of candidates) {
+    if (budget.summaryRequests >= maxExistingRefreshesPerRun) {
+      budget.skippedByBudget += candidates.length - budget.refreshedPlaces;
+      warnings.push(
+        `Deferred ${candidates.length - budget.refreshedPlaces} existing-place checks because CHISHA_MAX_EXISTING_REFRESHES_PER_RUN=${maxExistingRefreshesPerRun}.`,
+      );
+      break;
+    }
+
+    try {
+      budget.summaryRequests += 1;
+      const summary = await getPlaceSummary(place.googlePlaceId);
+      budget.refreshedPlaces += 1;
+
+      if (!placeSummaryChanged(place, summary)) {
+        places[index] = {
+          ...place,
+          lastCheckedAt: generatedAt,
+        };
+        continue;
+      }
+
+      if (budget.detailRequests >= maxPlaceDetailRequestsPerRun || budget.changedPlaceDetails >= maxChangedPlaceDetailsPerRun) {
+        budget.skippedByBudget += 1;
+        places[index] = applyPlaceSummary(place, summary, generatedAt);
+        warnings.push(`${place.name}: rating/review count changed, but full review refresh was deferred by the per-run detail budget.`);
+        continue;
+      }
+
+      budget.detailRequests += 1;
+      budget.changedPlaceDetails += 1;
+      const detail = await getPlaceDetails(place.googlePlaceId);
+      const normalized = await normalizePlace(detail, generatedAt, place, budget);
+
+      if (normalized) {
+        places[index] = normalized;
+        budget.changedPlaces += 1;
+      } else {
+        places[index] = applyPlaceSummary(place, summary, generatedAt);
+      }
+    } catch (error) {
+      errors.push(`${place.name}: ${formatError(error)}`);
+    }
+  }
+
+  return budget.refreshedPlaces;
+}
+
+async function backfillCachedPhotoFiles(places: ChishaPlace[], budget: RunBudget, warnings: string[]): Promise<void> {
+  for (const place of places) {
+    if (budget.photoDownloadRequests >= maxPhotoDownloadRequestsPerRun) {
+      return;
+    }
+
+    for (const photo of place.photos) {
+      if (budget.photoDownloadRequests >= maxPhotoDownloadRequestsPerRun) {
+        return;
+      }
+
+      if (!photo.googlePhotoName || (photo.localUrl && await localPhotoExists(photo.localUrl))) {
+        continue;
+      }
+
+      budget.photoDownloadRequests += 1;
+      const localUrl = await downloadPhoto(photo.googlePhotoName, photo.id);
+
+      if (localUrl) {
+        photo.localUrl = localUrl;
+      } else {
+        warnings.push(`${place.name}: cached Google photo ${photo.id} could not be restored this run.`);
+      }
+    }
+  }
 }
 
 async function searchPlaces(query: string): Promise<GoogleTextSearchResponse> {
@@ -238,16 +440,7 @@ async function searchPlaces(query: string): Promise<GoogleTextSearchResponse> {
     headers: {
       "content-type": "application/json",
       "x-goog-api-key": apiKey ?? "",
-      "x-goog-fieldmask": [
-        "places.id",
-        "places.displayName",
-        "places.formattedAddress",
-        "places.location",
-        "places.rating",
-        "places.userRatingCount",
-        "places.primaryType",
-        "places.types",
-      ].join(","),
+      "x-goog-fieldmask": "places.id",
     },
     body: JSON.stringify({
       textQuery: query,
@@ -294,7 +487,27 @@ async function getPlaceDetails(placeId: string): Promise<GooglePlace> {
   });
 }
 
-async function normalizePlace(place: GooglePlace, collectedAt: string): Promise<ChishaPlace | undefined> {
+async function getPlaceSummary(placeId: string): Promise<GooglePlaceSummary> {
+  const encodedPlaceId = encodeURIComponent(placeId);
+
+  return fetchJson<GooglePlaceSummary>(`${placesBaseUrl}/places/${encodedPlaceId}?languageCode=zh-TW&regionCode=TW`, {
+    headers: {
+      "x-goog-api-key": apiKey ?? "",
+      "x-goog-fieldmask": [
+        "id",
+        "rating",
+        "userRatingCount",
+      ].join(","),
+    },
+  });
+}
+
+async function normalizePlace(
+  place: GooglePlace,
+  collectedAt: string,
+  existingPlace: ChishaPlace | undefined,
+  budget: RunBudget,
+): Promise<ChishaPlace | undefined> {
   const googlePlaceId = place.id;
   const name = place.displayName?.text;
 
@@ -302,7 +515,7 @@ async function normalizePlace(place: GooglePlace, collectedAt: string): Promise<
     return undefined;
   }
 
-  const photos = await normalizePhotos(googlePlaceId, place.photos ?? []);
+  const photos = await normalizePhotos(googlePlaceId, place.photos ?? [], existingPlace, budget);
   const reviews = normalizeReviews(place.reviews ?? [], googlePlaceId);
   const distanceMeters = place.location?.latitude && place.location.longitude
     ? Math.round(distanceBetween(chishaArea.center.lat, chishaArea.center.lng, place.location.latitude, place.location.longitude))
@@ -321,31 +534,56 @@ async function normalizePlace(place: GooglePlace, collectedAt: string): Promise<
     rating: place.rating,
     userRatingCount: place.userRatingCount,
     distanceMeters,
-    latestReviewAt: latestReviewTime(reviews),
+    latestReviewAt: latestReviewTime(reviews) ?? existingPlace?.latestReviewAt,
     collectedAt,
+    lastCheckedAt: collectedAt,
     photos,
-    reviews,
+    reviews: reviews.length > 0 ? reviews : existingPlace?.reviews ?? [],
   };
 }
 
-async function normalizePhotos(placeId: string, photos: GooglePhoto[]): Promise<ChishaPhoto[]> {
+async function normalizePhotos(
+  placeId: string,
+  photos: GooglePhoto[],
+  existingPlace: ChishaPlace | undefined,
+  budget: RunBudget,
+): Promise<ChishaPhoto[]> {
+  const existingPhotos = existingPlace?.photos ?? [];
+
+  if (maxPhotosPerPlace <= 0) {
+    return existingPhotos;
+  }
+
   const normalized: ChishaPhoto[] = [];
+  const existingByGoogleName = new Map(existingPhotos.filter((photo) => photo.googlePhotoName).map((photo) => [photo.googlePhotoName, photo]));
   const selectedPhotos = photos.filter((photo) => photo.name).slice(0, maxPhotosPerPlace);
+
+  if (selectedPhotos.length === 0) {
+    return existingPhotos.slice(0, maxPhotosPerPlace);
+  }
 
   for (const [index, photo] of selectedPhotos.entries()) {
     const googlePhotoName = photo.name;
-    const id = `${slugify(placeId)}-${index + 1}`;
-    const localUrl = googlePhotoName ? await downloadPhoto(googlePhotoName, id) : undefined;
+    const existingPhoto = googlePhotoName ? existingByGoogleName.get(googlePhotoName) : undefined;
+    const id = existingPhoto?.id ?? `${slugify(placeId)}-${index + 1}`;
+    let localUrl = existingPhoto?.localUrl;
+
+    if (!localUrl && googlePhotoName && budget.photoDownloadRequests < maxPhotoDownloadRequestsPerRun) {
+      budget.photoDownloadRequests += 1;
+      localUrl = await downloadPhoto(googlePhotoName, id);
+    } else if (!localUrl && googlePhotoName) {
+      budget.skippedByBudget += 1;
+    }
 
     normalized.push({
       id,
       localUrl,
       googlePhotoName,
-      widthPx: photo.widthPx,
-      heightPx: photo.heightPx,
+      widthPx: photo.widthPx ?? existingPhoto?.widthPx,
+      heightPx: photo.heightPx ?? existingPhoto?.heightPx,
       authorAttributions: photo.authorAttributions
         ?.map((item) => item.displayName)
-        .filter((value): value is string => Boolean(value)),
+        .filter((value): value is string => Boolean(value)) ?? existingPhoto?.authorAttributions,
     });
   }
 
@@ -388,6 +626,60 @@ function normalizeReviews(reviews: GoogleReview[], placeId: string): ChishaRevie
       publishTime: review.publishTime,
       sourceUrl: review.authorAttribution?.uri,
     }));
+}
+
+function shouldRefreshPlace(place: ChishaPlace, generatedAt: string): boolean {
+  if (maxExistingRefreshesPerRun <= 0) {
+    return false;
+  }
+
+  if (forceRefreshExisting) {
+    return true;
+  }
+
+  return daysBetween(lastCheckedDate(place), new Date(generatedAt)) >= refreshExistingAfterDays;
+}
+
+function lastCheckedTime(place: ChishaPlace): number {
+  return lastCheckedDate(place).getTime();
+}
+
+function lastCheckedDate(place: ChishaPlace): Date {
+  const value = place.lastCheckedAt ?? place.collectedAt;
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? new Date(0) : date;
+}
+
+function daysBetween(earlier: Date, later: Date): number {
+  return Math.floor((startOfTaipeiDay(later).getTime() - startOfTaipeiDay(earlier).getTime()) / 86_400_000);
+}
+
+function placeSummaryChanged(place: ChishaPlace, summary: GooglePlaceSummary): boolean {
+  const ratingChanged = typeof summary.rating === "number" && summary.rating !== place.rating;
+  const reviewCountChanged = typeof summary.userRatingCount === "number" && summary.userRatingCount !== place.userRatingCount;
+
+  return ratingChanged || reviewCountChanged;
+}
+
+function applyPlaceSummary(place: ChishaPlace, summary: GooglePlaceSummary, checkedAt: string): ChishaPlace {
+  return {
+    ...place,
+    rating: typeof summary.rating === "number" ? summary.rating : place.rating,
+    userRatingCount: typeof summary.userRatingCount === "number" ? summary.userRatingCount : place.userRatingCount,
+    lastCheckedAt: checkedAt,
+  };
+}
+
+async function localPhotoExists(localUrl: string): Promise<boolean> {
+  const photoPath = resolve("public", localUrl.replace(/^\/+/, "").replace(/^compare-site\//, ""));
+
+  try {
+    await access(photoPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function buildStats(places: ChishaPlace[], generatedAt: string): ChishaSiteData["stats"] {
@@ -570,15 +862,22 @@ function extensionFromContentType(contentType: string): string {
   return extension || ".jpg";
 }
 
+function readIntEnv(name: string, fallback: string): number {
+  const rawValue = process.env[name] ?? fallback;
+  const parsed = Number.parseInt(rawValue, 10);
+
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return 0;
+  }
+
+  return parsed;
+}
+
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 const siteData = await collectChishaData();
-
-if (requireLiveData && siteData.places.length === 0) {
-  throw new Error("Chisha live data collection returned no Google Places results.");
-}
 
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(siteData, null, 2)}\n`);
@@ -587,3 +886,21 @@ await writeFile(crawlReportPath, `${JSON.stringify(siteData.crawlReport, null, 2
 console.log(
   `Collected Chisha data: ${siteData.places.length} places, ${siteData.stats.reviewCount} reviews, ${siteData.stats.photoCount} photos (${siteData.status}).`,
 );
+
+if (siteData.crawlReport.warnings.length > 0) {
+  for (const warning of siteData.crawlReport.warnings) {
+    console.warn(`Chisha warning: ${warning}`);
+  }
+}
+
+if (siteData.crawlReport.errors.length > 0) {
+  for (const error of siteData.crawlReport.errors) {
+    console.error(`Chisha error: ${error}`);
+  }
+}
+
+if (requireLiveData && siteData.places.length === 0) {
+  throw new Error(
+    `Chisha live data collection returned no Google Places results. Report written to ${crawlReportPath}; status=${siteData.status}; errors=${siteData.crawlReport.errors.length}.`,
+  );
+}

@@ -131,6 +131,23 @@ REQUIRE_LIVE_TRENDS=true
 
 `REQUIRE_LIVE_TRENDS=true` 代表正式部署必須成功抓到即時 Google Trends 資料；如果 Google Trends 暫時無法取得，workflow 會失敗而不是靜默使用 fallback seed，方便及早發現資料更新問題。
 
+### Chisha Google Places 成本控制
+
+Chisha 的 Google Places 抓取由 `.github/workflows/refresh-chisha.yml` 負責；GitHub Pages deploy 只復用 Actions cache 裡的 `data/chisha` 與 `public/chisha/photos`，不主動擴充 Chisha 資料，避免每次部署重複花費 API quota。
+
+`scripts/collect-chisha.ts` 會優先復用既有店家與照片。搜尋新店家時只要求 `places.id`，再用每次最多 4 筆 full detail 的預算補資料；既有店家每 7 天最多檢查 4 筆 rating / review count，只有評分或評論數變動時才刷新完整 reviews/photos。照片下載另有每次最多 2 張的預算，已存在的 local photo 不會重抓。
+
+主要限流環境變數：
+
+```text
+CHISHA_MAX_NEW_PLACES_PER_RUN=4
+CHISHA_MAX_PLACE_DETAILS_PER_RUN=4
+CHISHA_MAX_EXISTING_REFRESHES_PER_RUN=4
+CHISHA_MAX_CHANGED_PLACE_DETAILS_PER_RUN=2
+CHISHA_MAX_PHOTO_DOWNLOADS_PER_RUN=2
+CHISHA_REFRESH_EXISTING_AFTER_DAYS=7
+```
+
 ## 專案架構
 
 ```text

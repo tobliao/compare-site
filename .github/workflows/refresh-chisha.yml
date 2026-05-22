@@ -19,11 +19,17 @@ jobs:
       SITE_URL: https://tobliao.github.io
       BASE_PATH: /compare-site
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-      REQUIRE_CHISHA_LIVE_DATA: "true"
+      REQUIRE_CHISHA_LIVE_DATA: "false"
       CHISHA_TARGET_PLACES: "24"
-      CHISHA_MAX_NEW_PLACES_PER_RUN: "8"
+      CHISHA_MAX_NEW_PLACES_PER_RUN: "4"
       CHISHA_MAX_PHOTOS_PER_PLACE: "1"
-      CHISHA_SEARCH_RESULTS_PER_QUERY: "20"
+      CHISHA_SEARCH_RESULTS_PER_QUERY: "10"
+      CHISHA_MAX_SEARCH_REQUESTS_PER_RUN: "7"
+      CHISHA_MAX_PLACE_DETAILS_PER_RUN: "4"
+      CHISHA_MAX_EXISTING_REFRESHES_PER_RUN: "4"
+      CHISHA_MAX_CHANGED_PLACE_DETAILS_PER_RUN: "2"
+      CHISHA_MAX_PHOTO_DOWNLOADS_PER_RUN: "2"
+      CHISHA_REFRESH_EXISTING_AFTER_DAYS: "7"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,6 +58,15 @@ jobs:
 
       - name: Collect Chisha Google Places data
         run: npm run collect:chisha
+
+      - name: Summarize Chisha collection
+        if: always()
+        run: |
+          if [ -f data/chisha/crawl-report.json ]; then
+            node -e "const fs=require('fs'); const report=JSON.parse(fs.readFileSync('data/chisha/crawl-report.json','utf8')); console.log(JSON.stringify(report, null, 2)); if (report.placeCount === 0) { console.log('::warning::Chisha collected 0 places. Check GOOGLE_MAPS_API_KEY restrictions, Places API enablement, billing, and crawl-report errors.'); }"
+          else
+            echo "::warning::Chisha crawl report was not produced."
+          fi
 
       - name: Validate static build
         run: npm run build:static

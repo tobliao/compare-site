@@ -35,6 +35,7 @@ export interface ChishaPlace {
   distanceMeters?: number;
   latestReviewAt?: string;
   collectedAt: string;
+  lastCheckedAt?: string;
   photos: ChishaPhoto[];
   reviews: ChishaReview[];
 }
@@ -57,6 +58,13 @@ export interface ChishaCrawlReport {
   placeCount: number;
   reusedPlaceCount?: number;
   newPlaceCount?: number;
+  refreshedPlaceCount?: number;
+  changedPlaceCount?: number;
+  searchRequestCount?: number;
+  summaryRequestCount?: number;
+  detailRequestCount?: number;
+  photoDownloadRequestCount?: number;
+  skippedByBudgetCount?: number;
   reviewCount: number;
   photoCount: number;
   warnings: string[];

@@ -15,9 +15,22 @@ const bestOffer = [...offers].sort((a, b) => a.price - b.price)[0];
 const bestStore = stores.find((store) => store.id === bestOffer?.storeId);
 const spread = getDiscountSpread(offers);
 const summary = product.summary.length > 46 ? `${product.summary.slice(0, 46)}...` : product.summary;
+const hasOfficial = offers.some((offer) => offer.badges?.includes("official"));
+const hasCrossBorder = offers.some((offer) => offer.badges?.includes("cross-border"));
+const searchText = [product.name, product.summary, category.name, ...product.keywords].join(" ").toLowerCase();
 ---
 
-<article class="product-card">
+<article
+  class="product-card"
+  data-product-card
+  data-search={searchText}
+  data-category={category.id}
+  data-price={bestOffer?.price ?? 0}
+  data-spread={spread}
+  data-offers={offers.length}
+  data-official={hasOfficial ? "true" : "false"}
+  data-cross-border={hasCrossBorder ? "true" : "false"}
+>
   <div class="product-card-main">
     <a class="muted" href={sitePath(`/category/${category.id}/`)}>{category.name}</a>
     <h3>{product.name}</h3>

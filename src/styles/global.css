@@ -172,6 +172,10 @@ svg {
   padding: 34px 0;
 }
 
+.section-actions {
+  margin-top: 18px;
+}
+
 .page-header {
   display: grid;
   gap: 16px;
@@ -330,6 +334,58 @@ svg {
   padding: 10px 14px;
 }
 
+.list-controls {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  margin-top: 18px;
+  padding: 14px;
+}
+
+.list-controls label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 720;
+}
+
+.list-controls input,
+.list-controls select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  padding: 11px 12px;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-chips button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 720;
+  padding: 8px 11px;
+}
+
+.filter-chips button.active {
+  background: var(--accent);
+  color: white;
+}
+
 .category-strip {
   display: flex;
   flex-wrap: wrap;
@@ -418,6 +474,124 @@ svg {
   display: grid;
   gap: 16px;
   padding: 18px;
+}
+
+.decision-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #f5eee7;
+  margin-bottom: 22px;
+  padding: 20px;
+}
+
+.decision-panel h2 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.6vw, 2rem);
+  letter-spacing: -0.05em;
+}
+
+.decision-panel p,
+.decision-panel li {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.decision-grid,
+.summary-card-grid,
+.topic-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.decision-grid h3,
+.summary-card h3,
+.faq-item h3,
+.topic-card h3 {
+  margin: 0;
+}
+
+.decision-grid ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.summary-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  padding: 16px;
+}
+
+.summary-card span,
+.summary-card p,
+.topic-card small,
+.deal-row small,
+.trend-row small {
+  color: var(--muted);
+}
+
+.summary-card strong {
+  display: block;
+  color: var(--brand-dark);
+  font-size: 1.3rem;
+  margin: 6px 0;
+}
+
+.topic-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  padding: 18px;
+}
+
+.topic-card p,
+.faq-item p {
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0;
+}
+
+.deal-table,
+.trend-list,
+.faq-list {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.deal-table.compact {
+  margin-top: 0;
+}
+
+.deal-row,
+.trend-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+
+.deal-row span,
+.trend-row span {
+  color: var(--brand-dark);
+  font-weight: 850;
+}
+
+.deal-row small,
+.trend-row small {
+  grid-column: 1 / -1;
+}
+
+.faq-item {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 16px 0;
 }
 
 .compact-product-list {
@@ -537,6 +711,21 @@ svg {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .list-controls {
+    grid-template-columns: 1fr 220px;
+    align-items: end;
+  }
+
+  .filter-chips {
+    grid-column: 1 / -1;
+  }
+
+  .decision-grid,
+  .summary-card-grid,
+  .topic-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .page-header {
     padding-top: 48px;
   }
@@ -558,5 +747,9 @@ svg {
 @media (min-width: 1040px) {
   .product-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .topic-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }

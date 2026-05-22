@@ -1,0 +1,104 @@
+---
+import ProductCard from "../components/ProductCard.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getCategory, getOfferSummary, getUpdateLabel, scoreTrend } from "../lib/core/catalog";
+import { getSiteData } from "../lib/core/loadSiteData";
+import { sitePath } from "../lib/core/urls";
+import { topics } from "../lib/plugins/topicCatalog";
+
+const siteData = await getSiteData();
+const sortedTrends = [...siteData.trends].sort((a, b) => scoreTrend(b) - scoreTrend(a));
+const trendProducts = sortedTrends
+  .flatMap((trend) => trend.relatedProductSlugs)
+  .filter((slug, index, all) => all.indexOf(slug) === index)
+  .map((slug) => siteData.products.find((product) => product.slug === slug))
+  .filter(Boolean)
+  .slice(0, 8);
+---
+
+<BaseLayout
+  title="台灣熱搜比價趨勢｜今日熱門商品與購買題材"
+  description="追蹤台灣 Google Trends 與熱門比價題材，快速找到正在被比較的商品、價差與主題導購。"
+  canonicalPath="/trends/"
+>
+  <section class="site-shell section">
+    <div class="page-header">
+      <a class="text-link" href={sitePath("/")}>回首頁</a>
+      <span class="eyebrow">趨勢雷達</span>
+      <h1 class="page-title">今日熱搜比價題材</h1>
+      <p class="lede">把搜尋熱度轉成購買入口。先看大家正在查什麼，再找到可以比較的商品與主題頁。</p>
+      <div class="summary-bar">
+        <span>{getUpdateLabel(siteData.generatedAt)}</span>
+        <span>{sortedTrends.length} 個趨勢</span>
+        <span>{trendProducts.length} 個關聯商品</span>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">熱門搜尋</span>
+          <h2>趨勢關鍵字</h2>
+        </div>
+      </div>
+      <div class="trend-list">
+        {
+          sortedTrends.map((trend) => (
+            <a class="trend-row" href={sitePath(trend.relatedProductSlugs[0] ? `/compare/${trend.relatedProductSlugs[0]}/` : "/products/")}>
+              <strong>{trend.keyword}</strong>
+              <span>{trend.approxTraffic}</span>
+              <small>{trend.relatedProductSlugs.length > 0 ? `${trend.relatedProductSlugs.length} 個關聯商品` : "可觀察題材"}</small>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">趨勢商品</span>
+          <h2>現在值得看</h2>
+        </div>
+      </div>
+      <div class="grid product-grid dense-grid">
+        {
+          trendProducts.map((product) => {
+            const offers = siteData.offers.filter((offer) => offer.productSlug === product.slug);
+            return <ProductCard product={product} category={getCategory(product.categoryId)} offers={offers} stores={siteData.stores} />;
+          })
+        }
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">主題導購</span>
+          <h2>延伸閱讀</h2>
+        </div>
+      </div>
+      <div class="topic-grid">
+        {
+          topics.map((topic) => {
+            const topicProducts = topic.productSlugs
+              .map((slug) => siteData.products.find((product) => product.slug === slug))
+              .filter(Boolean);
+            const bestSpread = Math.max(
+              0,
+              ...topicProducts.map((product) => getOfferSummary(siteData.offers.filter((offer) => offer.productSlug === product.slug)).spread),
+            );
+            return (
+              <a class="topic-card" href={sitePath(`/topics/${topic.slug}/`)}>
+                <span class="eyebrow">{topic.intent}</span>
+                <h3>{topic.title}</h3>
+                <p>{topic.description}</p>
+                <small>{topicProducts.length} 個商品 · 最高價差 {bestSpread > 0 ? new Intl.NumberFormat("zh-TW", { style: "currency", currency: "TWD", maximumFractionDigits: 0 }).format(bestSpread) : "待觀察"}</small>
+              </a>
+            );
+          })
+        }
+      </div>
+    </section>
+  </section>
+</BaseLayout>

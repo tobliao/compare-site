@@ -1,12 +1,19 @@
 import type { APIRoute } from "astro";
 import { getSiteData } from "../lib/core/loadSiteData";
 import { absoluteSiteUrl } from "../lib/core/urls";
+import { topics } from "../lib/plugins/topicCatalog";
 
 export const GET: APIRoute = async ({ site }) => {
   const siteData = await getSiteData();
   const urls = [
     { loc: absoluteSiteUrl("/", site), priority: "1.0" },
     { loc: absoluteSiteUrl("/products/", site), priority: "0.9" },
+    { loc: absoluteSiteUrl("/trends/", site), priority: "0.9" },
+    { loc: absoluteSiteUrl("/deals/", site), priority: "0.9" },
+    ...topics.map((topic) => ({
+      loc: absoluteSiteUrl(`/topics/${topic.slug}/`, site),
+      priority: "0.85",
+    })),
     ...siteData.categories.map((category) => ({
       loc: absoluteSiteUrl(`/category/${category.id}/`, site),
       priority: "0.75",

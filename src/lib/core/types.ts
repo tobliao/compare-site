@@ -63,6 +63,36 @@ export interface Trend {
   relatedProductSlugs: string[];
 }
 
+export interface Topic {
+  slug: string;
+  title: string;
+  description: string;
+  categoryIds: CategoryId[];
+  productSlugs: string[];
+  intent: string;
+  audience: string;
+  faq: Array<{
+    question: string;
+    answer: string;
+  }>;
+}
+
+export interface OfferSummary {
+  bestOffer?: Offer;
+  highestOffer?: Offer;
+  officialOffer?: Offer;
+  crossBorderOffers: Offer[];
+  spread: number;
+  storeCount: number;
+}
+
+export interface ProductDecision {
+  verdict: string;
+  bestFor: string[];
+  notBestFor: string[];
+  channelTip: string;
+}
+
 export interface ProductPageData {
   product: Product;
   category: Category;

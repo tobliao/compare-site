@@ -1,9 +1,10 @@
 ---
 import ProductCard from "../components/ProductCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { getCategory, getDiscountSpread, scoreTrend } from "../lib/core/catalog";
+import { formatPrice, getCategory, getDiscountSpread, getOfferSummary, getUpdateLabel, scoreTrend } from "../lib/core/catalog";
 import { getSiteData } from "../lib/core/loadSiteData";
 import { absoluteSiteUrl, sitePath } from "../lib/core/urls";
+import { topics } from "../lib/plugins/topicCatalog";
 
 const siteData = await getSiteData();
 const featuredProducts = siteData.products
@@ -20,6 +21,16 @@ const categoriesWithCounts = siteData.categories.map((category) => ({
   ...category,
   count: siteData.products.filter((product) => product.categoryId === category.id).length,
 }));
+const dealRows = siteData.products
+  .map((product) => {
+    const offers = siteData.offers.filter((offer) => offer.productSlug === product.slug);
+    return {
+      product,
+      summary: getOfferSummary(offers),
+    };
+  })
+  .sort((a, b) => b.summary.spread - a.summary.spread)
+  .slice(0, 5);
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -53,6 +64,7 @@ const structuredData = {
         <a class="button secondary" href={sitePath("/products/")}>全部商品</a>
       </div>
       <div class="summary-bar hero-summary" aria-label="站內資料摘要">
+        <span>{getUpdateLabel(siteData.generatedAt)}</span>
         <span>{siteData.products.length} 個商品</span>
         <span>{siteData.offers.length} 筆價格</span>
         <span>{siteData.categories.length} 個分類</span>
@@ -66,13 +78,34 @@ const structuredData = {
         <span class="eyebrow">熱門搜尋</span>
         <h2>正在被比較的題材</h2>
       </div>
-      <p>保留趨勢感，但不干擾購物判斷。</p>
+      <a class="text-link" href={sitePath("/trends/")}>看完整趨勢</a>
     </div>
     <div class="chip-list">
       {
         topTrends.map((trend) => (
           <a class="chip" href={sitePath(trend.relatedProductSlugs[0] ? `/compare/${trend.relatedProductSlugs[0]}/` : "/products/")}>
             {trend.keyword}
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="site-shell section">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">今日價差</span>
+        <h2>價差最大</h2>
+      </div>
+      <a class="text-link" href={sitePath("/deals/")}>看今日值得比</a>
+    </div>
+    <div class="deal-table compact">
+      {
+        dealRows.map(({ product, summary }) => (
+          <a class="deal-row" href={sitePath(`/compare/${product.slug}/`)}>
+            <strong>{product.name}</strong>
+            <span>{summary.bestOffer ? formatPrice(summary.bestOffer.price) : "待更新"}</span>
+            <small>價差 {formatPrice(summary.spread)} · {summary.storeCount} 個通路</small>
           </a>
         ))
       }
@@ -108,6 +141,28 @@ const structuredData = {
     </div>
     <div class="section-actions">
       <a class="button secondary" href={sitePath("/products/")}>查看全部 {siteData.products.length} 個商品</a>
+    </div>
+  </section>
+
+  <section class="site-shell section">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">主題導購</span>
+        <h2>依情境快速開始</h2>
+      </div>
+      <a class="text-link" href={sitePath("/trends/")}>看所有題材</a>
+    </div>
+    <div class="topic-grid">
+      {
+        topics.map((topic) => (
+          <a class="topic-card" href={sitePath(`/topics/${topic.slug}/`)}>
+            <span class="eyebrow">{topic.intent}</span>
+            <h3>{topic.title}</h3>
+            <p>{topic.description}</p>
+            <small>{topic.productSlugs.length} 個精選商品</small>
+          </a>
+        ))
+      }
     </div>
   </section>
 </BaseLayout>

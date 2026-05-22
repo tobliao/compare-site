@@ -1,7 +1,14 @@
 ---
 import PriceCard from "../../components/PriceCard.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { buildProductPageData, formatPrice, getDiscountSpread, getStore } from "../../lib/core/catalog";
+import {
+  buildProductPageData,
+  formatPrice,
+  getOfferSummary,
+  getProductDecision,
+  getStore,
+  getUpdateLabel,
+} from "../../lib/core/catalog";
 import { getSiteData } from "../../lib/core/loadSiteData";
 import { sitePath } from "../../lib/core/urls";
 import type { Product } from "../../lib/core/types";
@@ -23,9 +30,10 @@ const { product } = Astro.props;
 const siteData = await getSiteData();
 const pageData = buildProductPageData(siteData, product);
 const sortedOffers = [...pageData.offers].sort((a, b) => a.price - b.price);
-const spread = getDiscountSpread(sortedOffers);
 const updatedAt = sortedOffers[0]?.fetchedAt ?? siteData.generatedAt;
 const bestStore = pageData.bestOffer ? getStore(siteData.stores, pageData.bestOffer.storeId) : undefined;
+const offerSummary = getOfferSummary(sortedOffers);
+const decision = getProductDecision(product, sortedOffers, siteData.stores);
 const relatedProducts = siteData.products
   .filter((item) => item.categoryId === product.categoryId && item.slug !== product.slug)
   .slice(0, 4)
@@ -34,30 +42,67 @@ const relatedProducts = siteData.products
     return {
       product: item,
       bestOffer: [...offers].sort((a, b) => a.price - b.price)[0],
-      spread: getDiscountSpread(offers),
+      spread: getOfferSummary(offers).spread,
     };
   });
-const title = `${product.name} 比價｜最低 ${pageData.bestOffer ? formatPrice(pageData.bestOffer.price) : "待更新"}｜Taiwan Price Radar`;
+const title = `${product.name} 比價｜今日最低價、價差與購買建議`;
 const description = `${product.summary} 比較 ${sortedOffers.length} 個通路價格、規格重點與購買建議。`;
+const faqItems = [
+  {
+    question: `${product.name} 現在值得買嗎？`,
+    answer: decision.verdict,
+  },
+  {
+    question: `${product.name} 最低價一定最好嗎？`,
+    answer: decision.channelTip,
+  },
+  {
+    question: `${product.name} 比價要注意什麼？`,
+    answer: product.buyingAdvice,
+  },
+];
 
-const structuredData = {
-  "@context": "https://schema.org",
-  "@type": "Product",
-  name: product.name,
-  description,
-  category: pageData.category.name,
-  offers: sortedOffers.map((offer) => ({
-    "@type": "Offer",
-    priceCurrency: offer.currency,
-    price: offer.price,
-    url: offer.url,
-    availability: "https://schema.org/InStock",
-    seller: {
-      "@type": "Organization",
-      name: getStore(siteData.stores, offer.storeId)?.name ?? offer.storeId,
-    },
-  })),
-};
+const structuredData = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description,
+    category: pageData.category.name,
+    offers: sortedOffers.map((offer) => ({
+      "@type": "Offer",
+      priceCurrency: offer.currency,
+      price: offer.price,
+      url: offer.url,
+      availability: "https://schema.org/InStock",
+      seller: {
+        "@type": "Organization",
+        name: getStore(siteData.stores, offer.storeId)?.name ?? offer.storeId,
+      },
+    })),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "首頁", item: sitePath("/") },
+      { "@type": "ListItem", position: 2, name: pageData.category.name, item: sitePath(`/category/${pageData.category.id}/`) },
+      { "@type": "ListItem", position: 3, name: product.name, item: sitePath(`/compare/${product.slug}/`) },
+    ],
+  },
+];
 ---
 
 <BaseLayout title={title} description={description} canonicalPath={`/compare/${product.slug}/`} structuredData={structuredData}>
@@ -79,12 +124,32 @@ const structuredData = {
         }
         <div class="compact-facts">
           <span>{sortedOffers.length} 個通路</span>
-          {spread > 0 && <span>最高價差 {formatPrice(spread)}</span>}
-          <span>更新 {new Date(updatedAt).toLocaleDateString("zh-TW")}</span>
+          {offerSummary.spread > 0 && <span>最高價差 {formatPrice(offerSummary.spread)}</span>}
+          <span>{getUpdateLabel(updatedAt)}</span>
         </div>
       </aside>
 
       <div>
+        <section class="decision-panel" aria-labelledby="decision-title">
+          <span class="eyebrow">今日結論</span>
+          <h2 id="decision-title">{decision.verdict}</h2>
+          <p>{decision.channelTip}</p>
+          <div class="decision-grid">
+            <div>
+              <h3>適合誰</h3>
+              <ul>
+                {decision.bestFor.map((item) => <li>{item}</li>)}
+              </ul>
+            </div>
+            <div>
+              <h3>不適合誰</h3>
+              <ul>
+                {decision.notBestFor.map((item) => <li>{item}</li>)}
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <section class="panel simple-panel" aria-labelledby="offers-title">
           <div class="section-heading">
             <div>
@@ -102,6 +167,32 @@ const structuredData = {
           <p class="fine-print">
             價格、庫存、運費與活動條件請以來源頁面為準。
           </p>
+        </section>
+
+        <section class="section" aria-labelledby="channel-title">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">通路摘要</span>
+              <h2 id="channel-title">快速判斷</h2>
+            </div>
+          </div>
+          <div class="summary-card-grid">
+            <article class="summary-card">
+              <span>最低價</span>
+              <strong>{offerSummary.bestOffer ? formatPrice(offerSummary.bestOffer.price) : "待更新"}</strong>
+              <p>{offerSummary.bestOffer ? getStore(siteData.stores, offerSummary.bestOffer.storeId)?.name ?? offerSummary.bestOffer.storeId : "尚無資料"}</p>
+            </article>
+            <article class="summary-card">
+              <span>官方/授權</span>
+              <strong>{offerSummary.officialOffer ? formatPrice(offerSummary.officialOffer.price) : "未標記"}</strong>
+              <p>{offerSummary.officialOffer ? getStore(siteData.stores, offerSummary.officialOffer.storeId)?.name ?? offerSummary.officialOffer.storeId : "點進來源頁確認保固"}</p>
+            </article>
+            <article class="summary-card">
+              <span>跨境提醒</span>
+              <strong>{offerSummary.crossBorderOffers.length} 個</strong>
+              <p>{offerSummary.crossBorderOffers.length > 0 ? "需留意運費、配送時間與報關" : "目前沒有跨境標記"}</p>
+            </article>
+          </div>
         </section>
 
         <section class="section" aria-labelledby="advice-title">
@@ -122,6 +213,18 @@ const structuredData = {
               ))
             }
           </dl>
+        </section>
+
+        <section class="section" aria-labelledby="faq-title">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">FAQ</span>
+              <h2 id="faq-title">常見問題</h2>
+            </div>
+          </div>
+          <div class="faq-list">
+            {faqItems.map((item) => <article class="faq-item"><h3>{item.question}</h3><p>{item.answer}</p></article>)}
+          </div>
         </section>
 
         <section class="section" aria-labelledby="related-title">

@@ -1,4 +1,16 @@
-import type { Category, CategoryId, Offer, Product, ProductPageData, SiteData, Store, Trend } from "./types";
+import type {
+  Category,
+  CategoryId,
+  Offer,
+  OfferSummary,
+  Product,
+  ProductDecision,
+  ProductPageData,
+  SiteData,
+  Store,
+  Topic,
+  Trend,
+} from "./types";
 
 export const categories: Category[] = [
   {
@@ -51,6 +63,10 @@ export function getBestOffer(offers: Offer[]): Offer | undefined {
   return [...offers].sort((a, b) => a.price - b.price)[0];
 }
 
+export function getHighestOffer(offers: Offer[]): Offer | undefined {
+  return [...offers].sort((a, b) => b.price - a.price)[0];
+}
+
 export function getDiscountSpread(offers: Offer[]): number {
   if (offers.length < 2) {
     return 0;
@@ -66,6 +82,62 @@ export function formatPrice(price: number): string {
     currency: "TWD",
     maximumFractionDigits: 0,
   }).format(price);
+}
+
+export function formatUpdatedDate(value: string): string {
+  return new Intl.DateTimeFormat("zh-TW", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
+export function getUpdateLabel(value: string): string {
+  return `每日更新 - 最後更新 ${formatUpdatedDate(value)}`;
+}
+
+export function getOfferSummary(offers: Offer[]): OfferSummary {
+  const bestOffer = getBestOffer(offers);
+  const highestOffer = getHighestOffer(offers);
+  const officialOffer = offers.find((offer) => offer.badges?.includes("official"));
+  const crossBorderOffers = offers.filter((offer) => offer.badges?.includes("cross-border"));
+
+  return {
+    bestOffer,
+    highestOffer,
+    officialOffer,
+    crossBorderOffers,
+    spread: getDiscountSpread(offers),
+    storeCount: new Set(offers.map((offer) => offer.storeId)).size,
+  };
+}
+
+export function getProductDecision(product: Product, offers: Offer[], stores: Store[]): ProductDecision {
+  const summary = getOfferSummary(offers);
+  const bestStore = summary.bestOffer ? getStore(stores, summary.bestOffer.storeId) : undefined;
+  const officialStore = summary.officialOffer ? getStore(stores, summary.officialOffer.storeId) : undefined;
+  const spreadText = summary.spread > 0 ? `，與最高價差 ${formatPrice(summary.spread)}` : "";
+  const category = getCategory(product.categoryId);
+
+  return {
+    verdict: summary.bestOffer
+      ? `目前最低價在 ${bestStore?.name ?? summary.bestOffer.storeId}，價格 ${formatPrice(summary.bestOffer.price)}${spreadText}。`
+      : "目前尚無可比較價格，建議稍後再回來查看。",
+    bestFor: [`想快速比較${category.name}價格的人`, "希望先看最低價與通路差異的人", product.specs["場景"] ?? product.specs["族群"] ?? "正在評估是否入手的人"],
+    notBestFor: [
+      summary.officialOffer ? "只接受實體門市現場服務的人" : "只想購買官方通路的人",
+      summary.crossBorderOffers.length > 0 ? "不想處理跨境運費或報關的人" : "需要即時到貨且無法等待的人",
+    ],
+    channelTip: summary.officialOffer
+      ? `重視官方/授權與保固可優先看 ${officialStore?.name ?? summary.officialOffer.storeId}；只看價格則先看最低價通路。`
+      : "目前沒有官方通路標記，建議點進來源頁確認保固、庫存與活動條件。",
+  };
+}
+
+export function getProductsByTopic(siteData: SiteData, topic: Topic): Product[] {
+  const productSet = new Set(topic.productSlugs);
+
+  return siteData.products.filter((product) => productSet.has(product.slug) || topic.categoryIds.includes(product.categoryId));
 }
 
 export function trafficToNumber(traffic: string): number {

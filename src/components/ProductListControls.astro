@@ -1,0 +1,77 @@
+---
+interface Props {
+  label?: string;
+}
+
+const { label = "商品工具" } = Astro.props;
+---
+
+<section class="list-controls" aria-label={label}>
+  <label>
+    <span>搜尋</span>
+    <input data-product-search type="search" placeholder="輸入商品、分類或關鍵字" />
+  </label>
+  <label>
+    <span>排序</span>
+    <select data-product-sort>
+      <option value="spread-desc">價差最大</option>
+      <option value="price-asc">最低價低到高</option>
+      <option value="offers-desc">通路數最多</option>
+    </select>
+  </label>
+  <div class="filter-chips" aria-label="快速篩選">
+    <button type="button" data-product-filter="high-spread">高價差</button>
+    <button type="button" data-product-filter="premium">高單價</button>
+    <button type="button" data-product-filter="official">官方通路</button>
+    <button type="button" data-product-filter="cross-border">跨境</button>
+    <button type="button" data-product-filter="all" class="active">全部</button>
+  </div>
+</section>
+
+<script is:inline>
+  const searchInput = document.querySelector("[data-product-search]");
+  const sortSelect = document.querySelector("[data-product-sort]");
+  const filterButtons = [...document.querySelectorAll("[data-product-filter]")];
+  const grid = document.querySelector("[data-product-grid]");
+  const cards = grid ? [...grid.querySelectorAll("[data-product-card]")] : [];
+  let activeFilter = "all";
+
+  function matchesFilter(card) {
+    const spread = Number(card.dataset.spread ?? 0);
+    const price = Number(card.dataset.price ?? 0);
+
+    if (activeFilter === "high-spread") return spread >= 1000;
+    if (activeFilter === "premium") return price >= 5000;
+    if (activeFilter === "official") return card.dataset.official === "true";
+    if (activeFilter === "cross-border") return card.dataset.crossBorder === "true";
+    return true;
+  }
+
+  function applyListState() {
+    if (!grid) return;
+
+    const query = String(searchInput?.value ?? "").trim().toLowerCase();
+    const sortMode = String(sortSelect?.value ?? "spread-desc");
+    const sortedCards = [...cards].sort((a, b) => {
+      if (sortMode === "price-asc") return Number(a.dataset.price ?? 0) - Number(b.dataset.price ?? 0);
+      if (sortMode === "offers-desc") return Number(b.dataset.offers ?? 0) - Number(a.dataset.offers ?? 0);
+      return Number(b.dataset.spread ?? 0) - Number(a.dataset.spread ?? 0);
+    });
+
+    for (const card of sortedCards) {
+      const matchesSearch = !query || String(card.dataset.search ?? "").includes(query);
+      card.hidden = !(matchesSearch && matchesFilter(card));
+      grid.append(card);
+    }
+  }
+
+  searchInput?.addEventListener("input", applyListState);
+  sortSelect?.addEventListener("change", applyListState);
+  for (const button of filterButtons) {
+    button.addEventListener("click", () => {
+      activeFilter = button.dataset.productFilter ?? "all";
+      for (const item of filterButtons) item.classList.toggle("active", item === button);
+      applyListState();
+    });
+  }
+</script>

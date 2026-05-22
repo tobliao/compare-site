@@ -1,7 +1,8 @@
 ---
 import ProductCard from "../../components/ProductCard.astro";
+import ProductListControls from "../../components/ProductListControls.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { getCategory, getDiscountSpread } from "../../lib/core/catalog";
+import { getCategory, getDiscountSpread, getUpdateLabel } from "../../lib/core/catalog";
 import { getSiteData } from "../../lib/core/loadSiteData";
 import { sitePath } from "../../lib/core/urls";
 import type { Category } from "../../lib/core/types";
@@ -50,9 +51,12 @@ const relatedCategories = siteData.categories.filter((item) => item.id !== categ
       <span>{products.length} 個商品</span>
       <span>依價差排序</span>
       <span>可進入單品頁查看通路</span>
+      <span>{getUpdateLabel(siteData.generatedAt)}</span>
     </div>
 
-    <div class="grid product-grid dense-grid">
+    <ProductListControls label={`${category.name} 搜尋與排序`} />
+
+    <div class="grid product-grid dense-grid" data-product-grid>
       {
         products.map(({ product, category, offers }) => (
           <ProductCard product={product} category={category} offers={offers} stores={siteData.stores} />

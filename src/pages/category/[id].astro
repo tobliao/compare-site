@@ -54,6 +54,19 @@ const relatedCategories = siteData.categories.filter((item) => item.id !== categ
       <span>{getUpdateLabel(siteData.generatedAt)}</span>
     </div>
 
+    <div class="purpose-grid compact-purpose">
+      <article>
+        <span>分類用途</span>
+        <h2>只看這一類商品</h2>
+        <p>把同類需求放在一起，適合先比較價差，再挑單品頁看細節。</p>
+      </article>
+      <article>
+        <span>快速決策</span>
+        <h2>最低價、通路數、跨境提醒</h2>
+        <p>卡片保留購買決策必要資訊，避免從平台首頁重新搜尋。</p>
+      </article>
+    </div>
+
     <ProductListControls label={`${category.name} 搜尋與排序`} />
 
     <div class="grid product-grid dense-grid" data-product-grid>

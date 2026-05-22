@@ -12,7 +12,7 @@ export const stores: Store[] = [
   { id: "feebee", name: "飛比價格", kind: "comparison", url: "https://feebee.com.tw/" },
   { id: "iherb", name: "iHerb", kind: "cross-border", url: "https://tw.iherb.com/" },
   { id: "mercari", name: "Mercari JP", kind: "cross-border", url: "https://jp.mercari.com/" },
-  { id: "brand-store", name: "品牌官方旗艦", kind: "brand", url: "https://example.com/brand-store" },
+  { id: "brand-store", name: "品牌官方旗艦", kind: "brand", url: "https://www.popmart.com/tw" },
 ];
 
 export const products: Product[] = [
@@ -388,7 +388,6 @@ const offerRows: Array<[string, string, number, string[]?]> = [
 export const offers: Offer[] = offerRows.map(([productSlug, storeId, price, badges]) => {
   const product = products.find((item) => item.slug === productSlug);
   const store = stores.find((item) => item.id === storeId);
-  const query = encodeURIComponent(product?.name ?? productSlug);
 
   return {
     id: `${productSlug}-${storeId}`,
@@ -397,7 +396,7 @@ export const offers: Offer[] = offerRows.map(([productSlug, storeId, price, badg
     title: `${product?.name ?? productSlug} - ${store?.name ?? storeId}`,
     price,
     currency: "TWD",
-    url: `${store?.url ?? "https://example.com/"}?q=${query}`,
+    url: buildOfferUrl(productSlug, product?.name ?? productSlug, storeId, store?.url ?? "https://example.com/"),
     fetchedAt: now,
     sourceName: "Curated seed",
     sourceUrl: "https://trends.google.com/trending/rss?geo=TW",
@@ -405,6 +404,55 @@ export const offers: Offer[] = offerRows.map(([productSlug, storeId, price, badg
     badges: badges as Offer["badges"],
   };
 });
+
+function buildOfferUrl(productSlug: string, productName: string, storeId: string, fallbackUrl: string): string {
+  const query = encodeURIComponent(productName);
+
+  switch (storeId) {
+    case "apple":
+      return getAppleProductUrl(productSlug);
+    case "momo":
+      return `https://www.momoshop.com.tw/search/searchShop.jsp?keyword=${query}&searchType=1`;
+    case "shopee":
+      return `https://shopee.tw/search?keyword=${query}`;
+    case "pchome":
+      return `https://24h.pchome.com.tw/search/?q=${query}`;
+    case "coupang":
+      return `https://www.tw.coupang.com/srp/${query}`;
+    case "biggo":
+      return `https://biggo.com.tw/s/${query}`;
+    case "feebee":
+      return `https://feebee.com.tw/s/${query}/`;
+    case "iherb":
+      return `https://tw.iherb.com/search?kw=${query}`;
+    case "mercari":
+      return `https://jp.mercari.com/search?keyword=${query}`;
+    case "brand-store":
+      return `${fallbackUrl}/search/${query}`;
+    default:
+      return fallbackUrl;
+  }
+}
+
+function getAppleProductUrl(productSlug: string): string {
+  if (productSlug === "iphone-17-pro-256") {
+    return "https://www.apple.com/tw/iphone-17-pro/";
+  }
+
+  if (productSlug === "iphone-17-256") {
+    return "https://www.apple.com/tw/iphone-17/";
+  }
+
+  if (productSlug === "iphone-16-128") {
+    return "https://www.apple.com/tw/iphone-16/";
+  }
+
+  if (productSlug === "airpods-pro") {
+    return "https://www.apple.com/tw/airpods-pro/";
+  }
+
+  return "https://www.apple.com/tw/shop/accessories/all";
+}
 
 export const manualTrends: Trend[] = [
   trend("iphone-17", "iPhone 17", "265000+", ["iphone-17-256", "iphone-17-pro-256"]),

@@ -55,12 +55,12 @@ const structuredData = {
   <section class="site-shell hero">
     <div class="hero-copy">
       <span class="eyebrow">今日值得比的價格</span>
-      <h1>少一點搜尋，多一點確定。</h1>
+      <h1>不用逛十個分頁，也能看懂今天該不該買。</h1>
       <p>
-        用最直接的方式整理熱門商品價格。先看最低價、價差和重點提醒，再決定要不要買。
+        我們把熱搜商品、通路價差、跨境提醒和購買重點整理成一張每日價格雷達。你只要先看結論，再決定要不要點進通路。
       </p>
       <div class="hero-actions">
-        <a class="button" href={sitePath("/products/")}>開始比價</a>
+        <a class="button" href={sitePath("/deals/")}>看今日值得比</a>
         <a class="button secondary" href={sitePath("/products/")}>全部商品</a>
       </div>
       <div class="summary-bar hero-summary" aria-label="站內資料摘要">
@@ -69,6 +69,42 @@ const structuredData = {
         <span>{siteData.offers.length} 筆價格</span>
         <span>{siteData.categories.length} 個分類</span>
       </div>
+    </div>
+    <aside class="hero-spotlight" aria-label="今日價格雷達">
+      <span class="eyebrow">價格雷達</span>
+      <h2>今天先看這 3 個</h2>
+      <div class="spotlight-list">
+        {
+          dealRows.slice(0, 3).map(({ product, summary }) => (
+            <a class="spotlight-row" href={sitePath(`/compare/${product.slug}/`)}>
+              <span>{product.name}</span>
+              <strong>{summary.bestOffer ? formatPrice(summary.bestOffer.price) : "待更新"}</strong>
+              <small>價差 {formatPrice(summary.spread)} · {summary.storeCount} 個通路</small>
+            </a>
+          ))
+        }
+      </div>
+      <a class="text-link" href={sitePath("/trends/")}>看熱門題材與趨勢</a>
+    </aside>
+  </section>
+
+  <section class="site-shell section">
+    <div class="purpose-grid">
+      <article>
+        <span>1</span>
+        <h2>先看價差</h2>
+        <p>找出同一商品在不同通路的價格幅度，先判斷是否值得花時間比較。</p>
+      </article>
+      <article>
+        <span>2</span>
+        <h2>再看通路</h2>
+        <p>官方、跨境、快速到貨與折扣通路分開標示，避免只被最低價帶走。</p>
+      </article>
+      <article>
+        <span>3</span>
+        <h2>最後再點出去</h2>
+        <p>每個價格入口都會導向商品搜尋或官方商品頁，方便直接確認庫存與活動條件。</p>
+      </article>
     </div>
   </section>
 

@@ -1,13 +1,21 @@
 ---
 import ProductCard from "../components/ProductCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { getCategory, getOfferSummary, getUpdateLabel, scoreTrend } from "../lib/core/catalog";
+import { getCategory, getOfferSummary, getUpdateLabel, trafficToNumber } from "../lib/core/catalog";
 import { getSiteData } from "../lib/core/loadSiteData";
 import { sitePath } from "../lib/core/urls";
 import { topics } from "../lib/plugins/topicCatalog";
 
 const siteData = await getSiteData();
-const sortedTrends = [...siteData.trends].sort((a, b) => scoreTrend(b) - scoreTrend(a));
+const sortedTrends = [...siteData.trends].sort((a, b) => {
+  const trafficDelta = trafficToNumber(b.approxTraffic) - trafficToNumber(a.approxTraffic);
+
+  if (trafficDelta !== 0) {
+    return trafficDelta;
+  }
+
+  return b.relatedProductSlugs.length - a.relatedProductSlugs.length;
+});
 const trendProducts = sortedTrends
   .flatMap((trend) => trend.relatedProductSlugs)
   .filter((slug, index, all) => all.indexOf(slug) === index)
@@ -34,6 +42,19 @@ const trendProducts = sortedTrends
       </div>
     </div>
 
+    <div class="purpose-grid compact-purpose">
+      <article>
+        <span>趨勢用途</span>
+        <h2>把搜尋熱度變成比價入口</h2>
+        <p>熱門關鍵字會連到商品、分類或主題頁，讓使用者不用停在趨勢列表。</p>
+      </article>
+      <article>
+        <span>回訪理由</span>
+        <h2>每天看哪些品類正在升溫</h2>
+        <p>搭配每日更新，適合追蹤季節商品、跨境平台與高單價新品。</p>
+      </article>
+    </div>
+
     <section class="section">
       <div class="section-heading">
         <div>
@@ -43,8 +64,9 @@ const trendProducts = sortedTrends
       </div>
       <div class="trend-list">
         {
-          sortedTrends.map((trend) => (
+          sortedTrends.map((trend, index) => (
             <a class="trend-row" href={sitePath(trend.relatedProductSlugs[0] ? `/compare/${trend.relatedProductSlugs[0]}/` : "/products/")}>
+              <em class="trend-rank">#{index + 1}</em>
               <strong>{trend.keyword}</strong>
               <span>{trend.approxTraffic}</span>
               <small>{trend.relatedProductSlugs.length > 0 ? `${trend.relatedProductSlugs.length} 個關聯商品` : "可觀察題材"}</small>

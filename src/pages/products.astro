@@ -45,6 +45,19 @@ const categoriesWithCounts = siteData.categories.map((category) => ({
       <span>{getUpdateLabel(siteData.generatedAt)}</span>
     </div>
 
+    <div class="purpose-grid compact-purpose">
+      <article>
+        <span>高價差</span>
+        <h2>優先找省最多的商品</h2>
+        <p>預設依價差排序，適合快速找到最值得點進去比較的商品。</p>
+      </article>
+      <article>
+        <span>確定篩選</span>
+        <h2>輸入後按確定再更新</h2>
+        <p>減少畫面跳動，讓搜尋、排序與快速篩選的目的更清楚。</p>
+      </article>
+    </div>
+
     <ProductListControls label="全部商品搜尋與排序" />
 
     <div class="grid product-grid dense-grid" data-product-grid>

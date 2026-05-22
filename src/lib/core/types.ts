@@ -93,6 +93,11 @@ export interface ProductDecision {
   channelTip: string;
 }
 
+export interface PriceTrendPoint {
+  label: string;
+  price: number;
+}
+
 export interface ProductPageData {
   product: Product;
   category: Category;

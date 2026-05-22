@@ -7,10 +7,13 @@ const { label = "商品工具" } = Astro.props;
 ---
 
 <section class="list-controls" aria-label={label}>
-  <label>
-    <span>搜尋</span>
-    <input data-product-search type="search" placeholder="輸入商品、分類或關鍵字" />
-  </label>
+  <div class="search-control">
+    <label>
+      <span>找商品</span>
+      <input data-product-search type="search" placeholder="輸入商品、分類或關鍵字" />
+    </label>
+    <button class="button confirm-button" type="button" data-product-apply>確定</button>
+  </div>
   <label>
     <span>排序</span>
     <select data-product-sort>
@@ -30,6 +33,7 @@ const { label = "商品工具" } = Astro.props;
 
 <script is:inline>
   const searchInput = document.querySelector("[data-product-search]");
+  const applyButton = document.querySelector("[data-product-apply]");
   const sortSelect = document.querySelector("[data-product-sort]");
   const filterButtons = [...document.querySelectorAll("[data-product-filter]")];
   const grid = document.querySelector("[data-product-grid]");
@@ -65,7 +69,10 @@ const { label = "商品工具" } = Astro.props;
     }
   }
 
-  searchInput?.addEventListener("input", applyListState);
+  applyButton?.addEventListener("click", applyListState);
+  searchInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") applyListState();
+  });
   sortSelect?.addEventListener("change", applyListState);
   for (const button of filterButtons) {
     button.addEventListener("click", () => {

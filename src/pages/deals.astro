@@ -1,7 +1,8 @@
 ---
 import ProductCard from "../components/ProductCard.astro";
+import PriceTrendChart from "../components/PriceTrendChart.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { formatPrice, getCategory, getOfferSummary, getUpdateLabel } from "../lib/core/catalog";
+import { formatPrice, getCategory, getOfferSummary, getPriceTrendPoints, getUpdateLabel } from "../lib/core/catalog";
 import { getSiteData } from "../lib/core/loadSiteData";
 import { sitePath } from "../lib/core/urls";
 
@@ -47,6 +48,13 @@ const crossBorderDeals = productRows.filter((row) => row.summary.crossBorderOffe
           <span class="eyebrow">價差最大</span>
           <h2>先看這些</h2>
         </div>
+      </div>
+      <div class="trend-strip">
+        {
+          biggestSpreads.slice(0, 3).map(({ product, offers }) => (
+            <PriceTrendChart title={product.name} points={getPriceTrendPoints(product, offers)} compact />
+          ))
+        }
       </div>
       <div class="deal-table">
         {

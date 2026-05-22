@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { getSiteData } from "../../lib/core/loadSiteData";
+import { getSiteData } from "@price/core/loadSiteData";
 
 export const GET: APIRoute = async () => {
   const siteData = await getSiteData();

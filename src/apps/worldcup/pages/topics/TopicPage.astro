@@ -1,0 +1,194 @@
+---
+import RelatedLinks from "@worldcup/components/RelatedLinks.astro";
+import SignalBoard from "@worldcup/components/SignalBoard.astro";
+import SourceDisclosure from "@worldcup/components/SourceDisclosure.astro";
+import BaseLayout from "@shared/layouts/BaseLayout.astro";
+import { absoluteSiteUrl, sitePath } from "@shared/core/urls";
+import { getSources, getTeamLabel, getWorldCupPlayer, getWorldCupTeam } from "@worldcup/lib/helpers";
+import { globalSignalBoard, type RelatedLink } from "@worldcup/lib/metrics";
+import { worldCupTopicPages, type WorldCupTopicPage } from "@worldcup/lib/topics";
+
+export function getStaticPaths() {
+  return worldCupTopicPages.map((topic) => ({
+    params: { slug: topic.slug },
+    props: { topic },
+  }));
+}
+
+interface Props {
+  topic: WorldCupTopicPage;
+}
+
+const { topic } = Astro.props;
+const teams = topic.relatedTeamSlugs.map(getWorldCupTeam).filter((team) => team !== undefined);
+const players = topic.relatedPlayerSlugs.map(getWorldCupPlayer).filter((player) => player !== undefined);
+const relatedLinks: RelatedLink[] = [
+  ...topic.relatedTeamSlugs.map((teamSlug) => ({
+    label: getTeamLabel(teamSlug),
+    href: `/worldcup/teams/${teamSlug}/`,
+    meta: "相關隊伍頁",
+  })),
+  ...players.slice(0, 3).map((player) => ({
+    label: player.name,
+    href: `/worldcup/players/${player.slug}/`,
+    meta: "相關球員頁",
+  })),
+  ...topic.relatedMatchupSlugs.map((matchupSlug) => ({
+    label: matchupSlug
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" "),
+    href: `/worldcup/matchups/${matchupSlug}/`,
+    meta: "相關對位頁",
+  })),
+  {
+    label: "2026 World Cup Hub",
+    href: "/worldcup/",
+    meta: "回到賽事分析首頁",
+  },
+];
+const sources = getSources(topic.sourceIds);
+
+const structuredData = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: topic.title,
+    description: topic.description,
+    inLanguage: "zh-Hant-TW",
+    url: absoluteSiteUrl(`/worldcup/topics/${topic.slug}/`, Astro.site),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: topic.faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "賽事分析",
+        item: absoluteSiteUrl("/worldcup/", Astro.site),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: topic.title,
+        item: absoluteSiteUrl(`/worldcup/topics/${topic.slug}/`, Astro.site),
+      },
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title={`${topic.title} | 2026 World Cup 賽事分析`}
+  description={topic.description}
+  canonicalPath={`/worldcup/topics/${topic.slug}/`}
+  structuredData={structuredData}
+>
+  <section class="wc-page-hero">
+    <div class="site-shell wc-page-hero-inner">
+      <div>
+        <a class="wc-back-link" href={sitePath("/worldcup/")}>← 回到 World Cup Hub</a>
+        <span class="wc-kicker">{topic.intent}</span>
+        <h1>{topic.title}</h1>
+        <p>{topic.heroTakeaway}</p>
+      </div>
+      <aside class="wc-scorecard">
+        <span>Search Intent</span>
+        <strong>{topic.tags[0]}</strong>
+        <small>{topic.tags.join(" · ")}</small>
+      </aside>
+    </div>
+  </section>
+
+  <section class="site-shell wc-section wc-two-column">
+    {
+      topic.sections.map((section) => (
+        <article class="wc-panel">
+          <span class="wc-kicker">Editorial Read</span>
+          <h2>{section.title}</h2>
+          <p>{section.body}</p>
+        </article>
+      ))
+    }
+  </section>
+
+  <section class="site-shell wc-section">
+    <SignalBoard
+      signals={globalSignalBoard}
+      title="這個主題後續該追什麼"
+      intro="主題頁的目標是承接搜尋，再把使用者導到隊伍、球員與對位頁。"
+    />
+  </section>
+
+  <section class="site-shell wc-section">
+    <div class="wc-section-heading">
+      <div>
+        <span class="wc-kicker">Related Teams</span>
+        <h2>相關隊伍與球員</h2>
+      </div>
+      <p>主題頁不是孤島，每個搜尋入口都要導回可深入閱讀的情報頁。</p>
+    </div>
+    <div class="wc-team-grid">
+      {
+        teams.map((team) => (
+          <a class="wc-team-card" href={sitePath(`/worldcup/teams/${team.slug}/`)}>
+            <span>{team.shortName} · {team.confederation}</span>
+            <h3>{team.name}</h3>
+            <p>{team.style}</p>
+          </a>
+        ))
+      }
+    </div>
+    <div class="wc-player-grid wc-section-nested">
+      {
+        players.map((player) => (
+          <a class="wc-player-card" href={sitePath(`/worldcup/players/${player.slug}/`)}>
+            <span>{player.position} · {getTeamLabel(player.teamSlug)}</span>
+            <h3>{player.name}</h3>
+            <p>{player.role}</p>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="site-shell wc-section">
+    <div class="wc-section-heading">
+      <div>
+        <span class="wc-kicker">FAQ</span>
+        <h2>使用者會搜尋的問題</h2>
+      </div>
+    </div>
+    <div class="faq-list">
+      {
+        topic.faqs.map((faq) => (
+          <article class="faq-item">
+            <h3>{faq.question}</h3>
+            <p>{faq.answer}</p>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="site-shell wc-section">
+    <RelatedLinks links={relatedLinks} title="從這個主題繼續看" />
+  </section>
+
+  <section class="site-shell wc-section">
+    <SourceDisclosure sources={sources} compact />
+  </section>
+</BaseLayout>

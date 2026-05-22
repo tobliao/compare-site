@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  schedule:
-    # Refresh the static site every 6 hours with the latest crawl.
-    - cron: "17 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,11 +21,22 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       SITE_URL: https://tobliao.github.io
       BASE_PATH: /compare-site
       REQUIRE_LIVE_TRENDS: "true"
+      REQUIRE_LIVE_OFFERS: "true"
+      MIN_PRODUCTS_PER_CATEGORY: "20"
+      MIN_PRICED_STORES_PER_PRODUCT: "2"
+      DISCOVERY_SEEDS_PER_CATEGORY: "24"
+      DISCOVERY_CANDIDATES_PER_CATEGORY: "36"
+      DISCOVERY_CANDIDATES_PER_ADAPTER: "4"
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      CHISHA_TARGET_PLACES: "24"
+      CHISHA_MAX_NEW_PLACES_PER_RUN: "8"
+      CHISHA_MAX_PHOTOS_PER_PLACE: "1"
+      CHISHA_SEARCH_RESULTS_PER_QUERY: "20"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,8 +56,31 @@ jobs:
       - name: Type check
         run: npm run check
 
-      - name: Build static site with latest crawl
+      - name: Restore Chisha data cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/chisha
+            public/chisha/photos
+          key: chisha-places-deploy-${{ github.run_id }}
+          restore-keys: |
+            chisha-places-
+
+      - name: Build static site
         run: npm run build
+
+      - name: Upload crawl report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-crawl-reports
+          path: |
+            data/crawl-report.json
+            data/site.json
+            data/worldcup/crawl-report.json
+            data/chisha/crawl-report.json
+            data/chisha/site.json
+          if-no-files-found: warn
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

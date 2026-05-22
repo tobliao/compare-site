@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { absoluteSiteUrl } from "../lib/core/urls";
+import { absoluteSiteUrl } from "@shared/core/urls";
 
 export const GET: APIRoute = ({ site }) => {
   const body = `User-agent: *

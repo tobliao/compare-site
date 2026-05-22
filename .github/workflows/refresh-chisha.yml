@@ -1,0 +1,68 @@
+name: Refresh Chisha data
+
+on:
+  schedule:
+    - cron: "47 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  refresh-chisha:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SITE_URL: https://tobliao.github.io
+      BASE_PATH: /compare-site
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      REQUIRE_CHISHA_LIVE_DATA: "true"
+      CHISHA_TARGET_PLACES: "24"
+      CHISHA_MAX_NEW_PLACES_PER_RUN: "8"
+      CHISHA_MAX_PHOTOS_PER_PLACE: "1"
+      CHISHA_SEARCH_RESULTS_PER_QUERY: "20"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Chisha data cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/chisha
+            public/chisha/photos
+          key: chisha-places-${{ github.run_id }}
+          restore-keys: |
+            chisha-places-
+
+      - name: Type check
+        run: npm run check
+
+      - name: Collect Chisha Google Places data
+        run: npm run collect:chisha
+
+      - name: Validate static build
+        run: npm run build:static
+
+      - name: Upload Chisha crawl report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chisha-crawl-report
+          path: |
+            data/chisha/crawl-report.json
+            data/chisha/site.json
+            public/chisha/photos
+          if-no-files-found: error

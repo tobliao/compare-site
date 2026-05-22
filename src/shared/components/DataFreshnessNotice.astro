@@ -1,0 +1,58 @@
+---
+import { freshnessProfiles, type FreshnessSection } from "@shared/core/dataFreshness";
+
+interface Props {
+  section: FreshnessSection;
+  generatedAt?: string;
+  compact?: boolean;
+}
+
+const { section, generatedAt, compact = false } = Astro.props;
+const profile = freshnessProfiles[section];
+const generatedAtLabel = generatedAt
+  ? new Intl.DateTimeFormat("zh-Hant-TW", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Asia/Taipei",
+    }).format(new Date(generatedAt))
+  : undefined;
+---
+
+<aside class:list={["freshness-notice", compact && "compact"]} aria-label={profile.title}>
+  <div>
+    <span class="freshness-label">資料更新透明度</span>
+    <h2>{profile.title}</h2>
+    <p>{profile.summary}</p>
+    {generatedAtLabel && <p class="freshness-generated">本次靜態頁面產生時間：{generatedAtLabel}</p>}
+  </div>
+  <div class="freshness-grid">
+    <article>
+      <span>自動化</span>
+      <p>{profile.automation}</p>
+    </article>
+    <article>
+      <span>目前 live 抓取</span>
+      {
+        profile.liveSources.length > 0 ? (
+          <ul>
+            {profile.liveSources.map((item) => <li>{item}</li>)}
+          </ul>
+        ) : (
+          <p>目前沒有 live 資料源；內容會隨 curated data 更新後重新部署。</p>
+        )
+      }
+    </article>
+    <article>
+      <span>目前 curated</span>
+      <ul>
+        {profile.curatedSources.map((item) => <li>{item}</li>)}
+      </ul>
+    </article>
+    <article>
+      <span>尚未自動化</span>
+      <ul>
+        {profile.notYetAutomated.map((item) => <li>{item}</li>)}
+      </ul>
+    </article>
+  </div>
+</aside>

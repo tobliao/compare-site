@@ -1,0 +1,896 @@
+---
+import PlaceCard from "@chisha/components/PlaceCard.astro";
+import { chishaPopularCategories } from "@chisha/data/xitunFeed";
+import { getChishaData } from "@chisha/core/loadChishaData";
+import type { ChishaPlace } from "@chisha/core/types";
+import BaseLayout from "@shared/layouts/BaseLayout.astro";
+import { sitePath } from "@shared/core/urls";
+
+const chishaData = await getChishaData();
+const generatedAtLabel = new Intl.DateTimeFormat("zh-Hant-TW", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Asia/Taipei",
+}).format(new Date(chishaData.generatedAt));
+const hasLiveData = chishaData.status === "live" || chishaData.places.length > 0;
+const activityTotal = chishaData.stats.activitySeries.reduce((sum, value) => sum + value, 0);
+const maxActivity = Math.max(...chishaData.stats.activitySeries, 1);
+const categoryCounts = buildCategoryCounts(chishaData.places);
+const sourceRows = chishaData.sources.map((source) => ({
+  name: source,
+  count: source.includes("Photos") ? chishaData.stats.photoCount : chishaData.stats.placeCount,
+}));
+const chishaHomeUrl = sitePath("/chisha/");
+const serializedPlaces = JSON.stringify(
+  chishaData.places.map((place) => ({
+    ...place,
+    photos: place.photos.map((photo) => ({
+      ...photo,
+      localUrl: photo.localUrl ? sitePath(photo.localUrl) : undefined,
+    })),
+  })),
+);
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "吃啥",
+  inLanguage: "zh-Hant-TW",
+  description: "聚焦臺中市西屯區附近餐廳、咖啡廳與甜點店的 Google Places 即時資料。",
+};
+
+function buildCategoryCounts(places: ChishaPlace[]): Array<{ name: string; count: number }> {
+  return chishaPopularCategories.map((category) => ({
+    name: category,
+    count: places.filter((place) => place.categories.includes(category)).length,
+  }));
+}
+---
+
+<BaseLayout
+  title="吃啥 | 臺中市西屯區 Google 評論動態"
+  description="吃啥以臺中市西屯區為核心，整理 Google Places 店家、照片與評論資料，快速看附近餐廳動態。"
+  canonicalPath="/chisha/"
+  structuredData={structuredData}
+  siteName="吃啥"
+>
+  <div class="chisha-page" data-chisha-root data-home-url={chishaHomeUrl}>
+    <section class="chisha-shell chisha-hero" aria-label="吃啥即時動態">
+      <div id="time" class="control-deck" aria-label="吃啥篩選工具列">
+        <button class="control-pill active" type="button" data-area-info>附近</button>
+        <button class="control-pill" type="button" data-area-info>{chishaData.area.city}</button>
+        <button class="control-pill active" type="button" data-time-filter="all">即時</button>
+        <button class="control-pill" type="button" data-time-filter="7">一週</button>
+        <button class="control-pill" type="button" data-time-filter="30">一個月</button>
+        <button class="control-pill" type="button" data-time-filter="90">三個月</button>
+      </div>
+
+      <div class="feed-header">
+        <div>
+          <p class="kicker">⚡ 即時動態</p>
+          <h1>{hasLiveData ? "Google 評論與店家資訊更新中" : "Google Places 尚未連線"}</h1>
+          <p class="updated">最後資料產生：{generatedAtLabel}</p>
+        </div>
+        <aside class="pulse-card" aria-label="今日新增貼文">
+          <span>今日新增貼文</span>
+          <strong>{chishaData.stats.todayReviewCount}</strong>
+          <small>來自 Google Places 回傳評論</small>
+          {
+            activityTotal > 0 ? (
+              <div class="activity-bars" aria-label="近七日評論量">
+                {chishaData.stats.activitySeries.map((value) => <i style={`height: ${Math.max(12, Math.round((value / maxActivity) * 34))}px`} title={`${value} 則`}></i>)}
+              </div>
+            ) : (
+              <p class="chart-empty">資料不足，尚無近七日評論時間序列。</p>
+            )
+          }
+        </aside>
+      </div>
+
+      {
+        hasLiveData ? (
+          <div class="feed-layout">
+            <aside class="timeline" aria-hidden="true">
+              <span class="timeline-badge">吃啥</span>
+              {chishaData.places.slice(1, 5).map(() => <span></span>)}
+            </aside>
+            <div class="feed-list" data-place-list>
+              {chishaData.places.map((place) => <PlaceCard place={place} />)}
+              <p class="empty-filter" data-empty-filter hidden>這個時間範圍目前沒有 Google 評論資料。</p>
+            </div>
+          </div>
+        ) : (
+          <section class="no-data-card" aria-label="吃啥資料狀態">
+            <span>資料源未連線</span>
+            <h2>尚未取得 Google Places 真實資料</h2>
+            <p>
+              請在本機或 GitHub Secrets 設定 <code>GOOGLE_MAPS_API_KEY</code>，再執行
+              <code>npm run collect:chisha</code>。目前不會用暫時店家、假評論或假圖片填充畫面。
+            </p>
+            {chishaData.crawlReport.warnings.length > 0 && (
+              <ul>
+                {chishaData.crawlReport.warnings.map((warning) => <li>{warning}</li>)}
+              </ul>
+            )}
+          </section>
+        )
+      }
+    </section>
+
+    <section id="member" class="chisha-shell insight-grid" aria-label="吃啥資料摘要">
+      <article class="source-panel">
+        <h2>資料來源</h2>
+        {
+          sourceRows.length > 0 ? (
+            <div class="platform-list">
+              {sourceRows.map((source) => (
+                <div>
+                  <span>G</span>
+                  <strong>{source.name}</strong>
+                  <small>{source.count}</small>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p class="muted-note">尚未取得真實資料來源。</p>
+          )
+        }
+      </article>
+      <article class="category-panel">
+        <h2>熱門分類</h2>
+        <div class="category-list">
+          {
+            categoryCounts.map((category) => (
+              <button type="button" data-category-filter={category.name}>
+                {category.name}
+                {hasLiveData && <span>{category.count}</span>}
+              </button>
+            ))
+          }
+        </div>
+      </article>
+    </section>
+
+    <dialog class="detail-dialog" data-detail-dialog>
+      <article class="detail-card">
+        <button class="dialog-close" type="button" data-dialog-close aria-label="關閉">×</button>
+        <div class="detail-photo" data-detail-photo></div>
+        <div class="detail-copy">
+          <span class="detail-source">Google Places</span>
+          <h2 data-detail-name></h2>
+          <p data-detail-meta></p>
+          <p data-detail-address></p>
+          <div class="rating-tabs" aria-label="評論星等篩選">
+            <button class="active" type="button" data-review-rating="all">全部</button>
+            <button type="button" data-review-rating="5">五星</button>
+            <button type="button" data-review-rating="4">四星</button>
+            <button type="button" data-review-rating="3">三星</button>
+            <button type="button" data-review-rating="2">二星</button>
+            <button type="button" data-review-rating="1">一星</button>
+          </div>
+          <div class="review-list" data-review-list></div>
+          <a class="maps-link" href={chishaHomeUrl} target="_blank" rel="noopener noreferrer" data-detail-map>在 Google Maps 查看</a>
+        </div>
+      </article>
+    </dialog>
+
+    <nav class="mobile-tabbar" aria-label="吃啥手機導覽">
+      <a class="active" href={chishaHomeUrl}>⌂<span>動態</span></a>
+      <a href={chishaHomeUrl}>☆<span>收藏</span></a>
+      <a href={chishaHomeUrl}>⌕<span>探索</span></a>
+      <a href={chishaHomeUrl}>☻<span>我的</span></a>
+    </nav>
+
+    <script id="chisha-place-data" type="application/json" set:html={serializedPlaces}></script>
+    <script>
+      const placeDataElement = document.querySelector("#chisha-place-data");
+      const root = document.querySelector("[data-chisha-root]");
+      const homeUrl = root?.dataset.homeUrl || "/chisha/";
+      const places = placeDataElement?.textContent ? JSON.parse(placeDataElement.textContent) : [];
+      const dialog = document.querySelector("[data-detail-dialog]");
+      const placeList = document.querySelector("[data-place-list]");
+      const emptyFilter = document.querySelector("[data-empty-filter]");
+      let activeRating = "all";
+      let activePlace = null;
+
+      function openPlace(place) {
+        activePlace = place;
+        activeRating = "all";
+        dialog.querySelector("[data-detail-name]").textContent = place.name;
+        dialog.querySelector("[data-detail-meta]").textContent = `${place.rating ? `${place.rating.toFixed(1)} ★` : "未評分"} · ${place.userRatingCount ?? 0} 則 Google 評論 · ${place.categories.join(" / ")}`;
+        dialog.querySelector("[data-detail-address]").textContent = place.address;
+        const mapLink = dialog.querySelector("[data-detail-map]");
+        mapLink.href = place.googleMapsUri || homeUrl;
+        renderDetailPhoto(place);
+        renderReviews();
+        dialog.querySelectorAll("[data-review-rating]").forEach((button) => {
+          button.classList.toggle("active", button.dataset.reviewRating === "all");
+        });
+        dialog.showModal();
+      }
+
+      function openAreaInfo() {
+        activePlace = {
+          name: "目前資料範圍：臺中市西屯區",
+          address: "以西屯區中心點與 Google Places 搜尋結果為主",
+          rating: undefined,
+          userRatingCount: 0,
+          categories: ["附近", "臺中市", "Google Places"],
+          googleMapsUri: homeUrl,
+          photos: [],
+          reviews: [
+            {
+              id: "area-info",
+              authorName: "吃啥資料說明",
+              rating: 5,
+              text: "目前先聚焦臺中市西屯區。切換到其他行政區前，資料管線會先確保 Google Places 回傳店家、照片與評論，再進入頁面展示。",
+              relativePublishTime: "資料範圍說明",
+            },
+          ],
+        };
+        dialog.querySelector("[data-detail-name]").textContent = activePlace.name;
+        dialog.querySelector("[data-detail-meta]").textContent = activePlace.categories.join(" / ");
+        dialog.querySelector("[data-detail-address]").textContent = activePlace.address;
+        dialog.querySelector("[data-detail-map]").href = homeUrl;
+        renderDetailPhoto(activePlace);
+        renderReviews();
+        dialog.showModal();
+      }
+
+      function renderDetailPhoto(place) {
+        const target = dialog.querySelector("[data-detail-photo]");
+        const photo = place.photos?.find((item) => item.localUrl);
+
+        if (photo?.localUrl) {
+          target.innerHTML = `<img src="${photo.localUrl}" alt="${place.name} 店家照片" />`;
+        } else {
+          target.textContent = "Google Places 尚未回傳店家照片";
+        }
+      }
+
+      function renderReviews() {
+        const reviewList = dialog.querySelector("[data-review-list]");
+        const reviews = (activePlace?.reviews ?? []).filter((review) => activeRating === "all" || String(review.rating) === activeRating);
+
+        if (reviews.length === 0) {
+          reviewList.innerHTML = `<p class="review-empty">這個星等目前沒有 Google Places 回傳評論。</p>`;
+          return;
+        }
+
+        reviewList.innerHTML = reviews
+          .map((review) => {
+            const stars = "★".repeat(Math.max(0, Math.min(5, Math.round(review.rating))));
+            return `<article class="google-review">
+              <div>
+                <strong>${escapeHtml(review.authorName)}</strong>
+                <span>${stars} ${review.relativePublishTime ? `· ${escapeHtml(review.relativePublishTime)}` : ""}</span>
+              </div>
+              <p>${escapeHtml(review.text)}</p>
+            </article>`;
+          })
+          .join("");
+      }
+
+      function applyTimeFilter(days) {
+        const cards = [...document.querySelectorAll("[data-place-card]")];
+        const now = Date.now();
+        let visibleCount = 0;
+
+        for (const card of cards) {
+          const place = places.find((item) => item.id === card.dataset.placeId);
+          const referenceTime = place?.latestReviewAt || place?.collectedAt;
+          const isVisible = days === "all" || (referenceTime && now - new Date(referenceTime).getTime() <= Number(days) * 86_400_000);
+          card.hidden = !isVisible;
+          visibleCount += isVisible ? 1 : 0;
+        }
+
+        if (emptyFilter) {
+          emptyFilter.hidden = visibleCount !== 0;
+        }
+      }
+
+      document.querySelectorAll("[data-place-card] .card-hit-area").forEach((button) => {
+        button.addEventListener("click", () => {
+          const card = button.closest("[data-place-card]");
+          const place = places.find((item) => item.id === card?.dataset.placeId);
+
+          if (place) {
+            openPlace(place);
+          }
+        });
+      });
+
+      document.querySelectorAll("[data-area-info]").forEach((button) => {
+        button.addEventListener("click", openAreaInfo);
+      });
+
+      document.querySelectorAll("[data-time-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-time-filter]").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          applyTimeFilter(button.dataset.timeFilter);
+        });
+      });
+
+      document.querySelectorAll("[data-review-rating]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeRating = button.dataset.reviewRating;
+          document.querySelectorAll("[data-review-rating]").forEach((item) => item.classList.remove("active"));
+          button.classList.add("active");
+          renderReviews();
+        });
+      });
+
+      document.querySelector("[data-dialog-close]")?.addEventListener("click", () => dialog.close());
+      dialog?.addEventListener("click", (event) => {
+        if (event.target === dialog) {
+          dialog.close();
+        }
+      });
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+    </script>
+  </div>
+</BaseLayout>
+
+<style>
+  .chisha-page {
+    --chisha-orange: #ff9f1c;
+    --chisha-orange-dark: #e78100;
+    --chisha-ink: #251b14;
+    --chisha-muted: #827568;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 18% 10%, rgba(255, 178, 58, 0.15), transparent 26%),
+      linear-gradient(180deg, #fffdfa 0%, #fff8ed 64%, #fff4e6 100%);
+    color: var(--chisha-ink);
+    padding: 10px 0 42px;
+  }
+
+  .chisha-shell {
+    width: min(980px, calc(100% - 34px));
+    margin: 0 auto;
+  }
+
+  .chisha-hero {
+    border: 1px solid rgba(245, 222, 187, 0.9);
+    border-radius: 28px;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 235, 0.7)),
+      #fffaf3;
+    box-shadow: 0 24px 70px rgba(139, 94, 39, 0.1);
+    padding: clamp(16px, 3vw, 26px);
+  }
+
+  .control-deck {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .control-pill {
+    min-height: 36px;
+    border: 1px solid rgba(237, 212, 178, 0.9);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #5d5046;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 820;
+    padding: 0 15px;
+    cursor: pointer;
+  }
+
+  .control-pill.active {
+    border-color: rgba(255, 175, 59, 0.58);
+    background: #fff1d7;
+    color: var(--chisha-orange-dark);
+  }
+
+  .feed-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .kicker {
+    margin: 0;
+    color: var(--chisha-ink);
+    font-size: clamp(1.5rem, 3vw, 2.15rem);
+    font-weight: 920;
+    letter-spacing: -0.055em;
+  }
+
+  h1 {
+    margin: 5px 0 0;
+    color: var(--chisha-muted);
+    font-size: 0.98rem;
+    font-weight: 720;
+  }
+
+  .updated {
+    margin: 14px 0 0;
+    color: #8d8174;
+    font-size: 0.86rem;
+  }
+
+  .pulse-card {
+    display: grid;
+    gap: 7px;
+    border: 1px solid rgba(255, 205, 135, 0.86);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 14px 28px rgba(179, 118, 37, 0.08);
+    padding: 14px;
+  }
+
+  .pulse-card span,
+  .pulse-card small {
+    color: #7f6e5c;
+    font-size: 0.78rem;
+    font-weight: 780;
+  }
+
+  .pulse-card strong {
+    font-size: 1.8rem;
+    line-height: 1;
+  }
+
+  .activity-bars {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    align-items: end;
+    min-height: 42px;
+    border-radius: 14px;
+    background: #f6fbf4;
+    padding: 8px;
+  }
+
+  .activity-bars i {
+    display: block;
+    border-radius: 999px 999px 4px 4px;
+    background: linear-gradient(180deg, #48d29d, #1b9f75);
+  }
+
+  .chart-empty {
+    margin: 0;
+    color: #817468;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .feed-layout {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .timeline {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    padding-top: 12px;
+  }
+
+  .timeline::before {
+    position: absolute;
+    width: 1px;
+    height: min(660px, 80%);
+    background: linear-gradient(#ffd998, #eadfce);
+    content: "";
+  }
+
+  .timeline span {
+    z-index: 1;
+    display: grid;
+    width: 12px;
+    height: 12px;
+    margin: 79px 0 0;
+    place-items: center;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #d8c9b6;
+    box-shadow: 0 0 0 1px #e8d7bf;
+  }
+
+  .timeline .timeline-badge {
+    width: 42px;
+    height: 42px;
+    margin: 0;
+    background: var(--chisha-orange);
+    color: white;
+    font-size: 0.78rem;
+    font-weight: 900;
+    box-shadow: 0 10px 22px rgba(255, 159, 28, 0.32);
+  }
+
+  .feed-list {
+    display: grid;
+    gap: 14px;
+  }
+
+  .empty-filter,
+  .no-data-card,
+  .muted-note {
+    color: #76685b;
+  }
+
+  .no-data-card {
+    margin-top: 18px;
+    border: 1px dashed rgba(214, 173, 116, 0.72);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.68);
+    padding: 22px;
+  }
+
+  .no-data-card span {
+    color: var(--chisha-orange-dark);
+    font-weight: 900;
+  }
+
+  .no-data-card h2 {
+    margin: 8px 0;
+    color: #2a2018;
+  }
+
+  .no-data-card code {
+    border-radius: 7px;
+    background: #fff2d9;
+    color: #684413;
+    padding: 2px 5px;
+  }
+
+  .insight-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+    gap: 16px;
+    margin-top: 18px;
+  }
+
+  .source-panel,
+  .category-panel {
+    border: 1px solid rgba(238, 218, 190, 0.9);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 18px 34px rgba(126, 86, 36, 0.06);
+    padding: 18px;
+  }
+
+  .source-panel h2,
+  .category-panel h2 {
+    margin: 0 0 14px;
+    color: #2a1e16;
+    font-size: 1rem;
+    letter-spacing: -0.03em;
+  }
+
+  .platform-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .platform-list div {
+    display: grid;
+    gap: 5px;
+    justify-items: center;
+    color: #5d5148;
+    font-size: 0.76rem;
+    text-align: center;
+  }
+
+  .platform-list span {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border-radius: 50%;
+    background: #fff1d6;
+    color: var(--chisha-orange-dark);
+    font-weight: 900;
+  }
+
+  .category-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .category-list button {
+    border: 0;
+    border-radius: 999px;
+    background: #fff2d9;
+    color: #8a5b1b;
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 820;
+    padding: 8px 12px;
+  }
+
+  .category-list span {
+    margin-left: 5px;
+    color: #ad7a32;
+  }
+
+  .detail-dialog {
+    width: min(780px, calc(100% - 26px));
+    border: 0;
+    border-radius: 26px;
+    background: transparent;
+    padding: 0;
+  }
+
+  .detail-dialog::backdrop {
+    background: rgba(38, 25, 12, 0.42);
+    backdrop-filter: blur(6px);
+  }
+
+  .detail-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid rgba(238, 218, 190, 0.9);
+    border-radius: 26px;
+    background: #fffaf3;
+    box-shadow: 0 28px 80px rgba(34, 22, 9, 0.22);
+  }
+
+  .dialog-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: #5c4b3a;
+    font-size: 1.4rem;
+  }
+
+  .detail-photo {
+    display: grid;
+    min-height: 360px;
+    place-items: center;
+    background: #f4e6d2;
+    color: #957550;
+    font-weight: 850;
+    padding: 18px;
+    text-align: center;
+  }
+
+  .detail-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .detail-copy {
+    display: grid;
+    gap: 11px;
+    padding: 26px;
+  }
+
+  .detail-source {
+    width: fit-content;
+    border-radius: 999px;
+    background: #fff0d1;
+    color: var(--chisha-orange-dark);
+    font-size: 0.78rem;
+    font-weight: 900;
+    padding: 5px 9px;
+  }
+
+  .detail-copy h2 {
+    margin: 0;
+    font-size: 1.55rem;
+    letter-spacing: -0.05em;
+  }
+
+  .detail-copy p {
+    margin: 0;
+    color: #6e6258;
+    line-height: 1.55;
+  }
+
+  .rating-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .rating-tabs button {
+    border: 1px solid #efd8b6;
+    border-radius: 999px;
+    background: white;
+    color: #695847;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 850;
+    padding: 6px 10px;
+  }
+
+  .rating-tabs button.active {
+    background: var(--chisha-orange);
+    color: white;
+  }
+
+  .review-list {
+    display: grid;
+    max-height: 260px;
+    gap: 10px;
+    overflow: auto;
+    padding-right: 4px;
+  }
+
+  .google-review {
+    border: 1px solid #f0ddc1;
+    border-radius: 16px;
+    background: white;
+    padding: 12px;
+  }
+
+  .google-review div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .google-review span {
+    color: #f1a521;
+    font-size: 0.82rem;
+    font-weight: 850;
+  }
+
+  .google-review p,
+  .review-empty {
+    margin: 8px 0 0;
+    color: #4d4138;
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .maps-link {
+    width: fit-content;
+    border-radius: 999px;
+    background: #21170f;
+    color: white;
+    font-weight: 850;
+    padding: 10px 14px;
+  }
+
+  .mobile-tabbar {
+    display: none;
+  }
+
+  @media (max-width: 720px) {
+    .chisha-page {
+      padding: 0 0 88px;
+    }
+
+    .chisha-shell {
+      width: min(430px, calc(100% - 22px));
+    }
+
+    .chisha-hero {
+      border-radius: 0 0 28px 28px;
+      border-top: 0;
+      padding: 13px 10px 18px;
+    }
+
+    .control-deck {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      margin-bottom: 14px;
+      scrollbar-width: none;
+    }
+
+    .control-deck::-webkit-scrollbar {
+      display: none;
+    }
+
+    .control-pill {
+      min-height: 32px;
+      flex: 0 0 auto;
+      font-size: 0.78rem;
+      padding: 0 12px;
+    }
+
+    .feed-header {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .pulse-card {
+      display: none;
+    }
+
+    .kicker {
+      font-size: 1.24rem;
+    }
+
+    h1,
+    .updated {
+      font-size: 0.78rem;
+    }
+
+    .feed-layout {
+      display: block;
+      margin-top: 14px;
+    }
+
+    .timeline {
+      display: none;
+    }
+
+    .feed-list {
+      gap: 10px;
+    }
+
+    .insight-grid {
+      grid-template-columns: 1fr;
+      width: min(430px, calc(100% - 22px));
+    }
+
+    .detail-card {
+      grid-template-columns: 1fr;
+      max-height: 86vh;
+      overflow: auto;
+    }
+
+    .detail-photo {
+      min-height: 180px;
+    }
+
+    .detail-copy {
+      padding: 18px;
+    }
+
+    .mobile-tabbar {
+      position: fixed;
+      right: 14px;
+      bottom: 12px;
+      left: 14px;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid rgba(238, 218, 190, 0.9);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 14px 36px rgba(54, 35, 14, 0.16);
+      padding: 8px 4px;
+      backdrop-filter: blur(14px);
+    }
+
+    .mobile-tabbar a {
+      display: grid;
+      gap: 2px;
+      justify-items: center;
+      color: #534a43;
+      font-size: 1rem;
+      font-weight: 850;
+    }
+
+    .mobile-tabbar a.active {
+      color: var(--chisha-orange);
+    }
+
+    .mobile-tabbar span {
+      font-size: 0.68rem;
+    }
+  }
+</style>

@@ -5,8 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "collect": "tsx scripts/collect.ts",
-    "build": "npm run collect && astro build",
+    "collect": "npm run collect:all",
+    "collect:all": "npm run collect:price && npm run collect:worldcup && npm run collect:chisha",
+    "collect:price": "tsx scripts/collect.ts",
+    "collect:worldcup": "tsx scripts/collect-worldcup.ts",
+    "collect:chisha": "tsx scripts/collect-chisha.ts",
+    "build": "npm run collect:all && astro build",
+    "build:static": "astro build",
     "preview": "astro preview",
     "check": "astro sync && tsc --noEmit"
   },

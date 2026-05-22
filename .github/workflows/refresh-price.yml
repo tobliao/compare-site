@@ -1,0 +1,58 @@
+name: Refresh price data
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  refresh-price:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SITE_URL: https://tobliao.github.io
+      BASE_PATH: /compare-site
+      REQUIRE_LIVE_TRENDS: "true"
+      REQUIRE_LIVE_OFFERS: "true"
+      MIN_PRODUCTS_PER_CATEGORY: "20"
+      MIN_PRICED_STORES_PER_PRODUCT: "2"
+      DISCOVERY_SEEDS_PER_CATEGORY: "24"
+      DISCOVERY_CANDIDATES_PER_CATEGORY: "36"
+      DISCOVERY_CANDIDATES_PER_ADAPTER: "4"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run check
+
+      - name: Collect price data
+        run: npm run collect:price
+
+      - name: Validate static build
+        run: npm run build:static
+
+      - name: Upload price crawl report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: price-crawl-report
+          path: |
+            data/crawl-report.json
+            data/site.json
+          if-no-files-found: error

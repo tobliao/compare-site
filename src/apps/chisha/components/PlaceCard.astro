@@ -1,0 +1,333 @@
+---
+import type { ChishaPlace } from "@chisha/core/types";
+import { sitePath } from "@shared/core/urls";
+
+interface Props {
+  place: ChishaPlace;
+}
+
+const { place } = Astro.props;
+const distanceLabel =
+  typeof place.distanceMeters === "number"
+    ? place.distanceMeters >= 1000
+      ? `${(place.distanceMeters / 1000).toFixed(1)} km`
+      : `${place.distanceMeters}m`
+    : undefined;
+const roundedRating = Math.round(place.rating ?? 0);
+const ratingStars = Array.from({ length: 5 }, (_, index) => index < roundedRating);
+const primaryReview = place.reviews[0];
+const primaryPhoto = place.photos.find((photo) => photo.localUrl);
+const categoryLabel = place.categories[0] ?? place.primaryType ?? "餐廳";
+---
+
+<article class="chisha-card" data-place-card data-place-id={place.id}>
+  <button class="card-hit-area" type="button" aria-label={`查看 ${place.name} 的 Google 評論與店家資訊`}>
+    <span>查看詳情</span>
+  </button>
+  <div class:list={["food-photo", !primaryPhoto?.localUrl && "empty"]}>
+    {
+      primaryPhoto?.localUrl ? (
+        <img src={sitePath(primaryPhoto.localUrl)} alt={`${place.name} 店家照片`} loading="lazy" />
+      ) : (
+        <span class="photo-empty">Google 照片待連線</span>
+      )
+    }
+    <span class="photo-badge">{categoryLabel}</span>
+  </div>
+  <div class="place-copy">
+    <div class="place-heading">
+      <h2>
+        {place.name}
+        <span class="verified" aria-label="Google Places 已回傳">G</span>
+      </h2>
+      <span class="time-label">{primaryReview?.relativePublishTime ?? "已收錄"}</span>
+    </div>
+    <div class="rating-row" aria-label={place.rating ? `評分 ${place.rating}` : "尚無評分"}>
+      <span class="stars" aria-hidden="true">
+        {ratingStars.map((isFilled) => <span class:list={[isFilled ? "filled" : "empty"]}>★</span>)}
+      </span>
+      <strong>{place.rating ? place.rating.toFixed(1) : "未評分"}</strong>
+      {typeof place.userRatingCount === "number" && <span class="review-count">{place.userRatingCount} 則</span>}
+    </div>
+    <div class="platform-row">
+      <span class="platform-icon">G</span>
+      <span>Google Places</span>
+    </div>
+    <p class="review">{primaryReview?.text ?? "目前 Google Places 沒有回傳文字評論。"}</p>
+    <p class="review muted">{place.categories.join(" · ")}</p>
+    <p class="address">
+      <span aria-hidden="true">⌖</span>
+      {place.address}
+      {distanceLabel && <span class="walk" aria-label={`距離 ${distanceLabel}`}>約 {distanceLabel}</span>}
+    </p>
+  </div>
+  <a class="save-button" href={place.googleMapsUri ?? "#"} target="_blank" rel="noopener noreferrer" aria-label={`在 Google Maps 開啟 ${place.name}`}>↗</a>
+</article>
+
+<style>
+  .chisha-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr) auto;
+    gap: 18px;
+    align-items: start;
+    border: 1px solid rgba(237, 216, 188, 0.82);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 16px 35px rgba(126, 86, 36, 0.08);
+    padding: 14px;
+  }
+
+  .card-hit-area {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border: 0;
+    border-radius: 22px;
+    background: transparent;
+    color: transparent;
+    cursor: pointer;
+  }
+
+  .card-hit-area span {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip: rect(0 0 0 0);
+  }
+
+  .food-photo {
+    position: relative;
+    min-height: 132px;
+    overflow: hidden;
+    border-radius: 17px;
+    background: #f6ead9;
+  }
+
+  .food-photo img {
+    width: 100%;
+    height: 100%;
+    min-height: 132px;
+    object-fit: cover;
+  }
+
+  .food-photo.empty {
+    display: grid;
+    place-items: center;
+    border: 1px dashed rgba(214, 173, 116, 0.7);
+    color: #9a7a52;
+    font-size: 0.78rem;
+    font-weight: 850;
+    text-align: center;
+    padding: 14px;
+  }
+
+  .photo-badge {
+    position: absolute;
+    top: 9px;
+    left: 9px;
+    z-index: 2;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--chisha-orange), #ffb62d);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 900;
+    padding: 5px 8px;
+  }
+
+  .place-copy {
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+  }
+
+  .place-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: start;
+  }
+
+  h2 {
+    margin: 0;
+    color: #201814;
+    font-size: clamp(1.02rem, 1.7vw, 1.2rem);
+    line-height: 1.25;
+    letter-spacing: -0.035em;
+  }
+
+  .verified {
+    display: inline-grid;
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--chisha-orange);
+    color: white;
+    font-size: 0.72rem;
+    vertical-align: 2px;
+  }
+
+  .review-count {
+    color: #7a6d62;
+    font-size: 0.82rem;
+    font-weight: 720;
+  }
+
+  .time-label {
+    color: #6f675f;
+    font-size: 0.84rem;
+    white-space: nowrap;
+  }
+
+  .rating-row,
+  .platform-row,
+  .address {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .rating-row {
+    margin-top: 8px;
+    color: #574a3d;
+    font-size: 0.92rem;
+  }
+
+  .stars {
+    color: #f6aa22;
+    letter-spacing: 0.05em;
+  }
+
+  .stars .empty {
+    color: #ddd3c7;
+  }
+
+  .platform-row {
+    margin-top: 8px;
+    color: #4d453f;
+    font-size: 0.86rem;
+    font-weight: 720;
+  }
+
+  .platform-icon {
+    display: inline-grid;
+    width: 18px;
+    height: 18px;
+    place-items: center;
+    border-radius: 50%;
+    background: #f0f5ff;
+    color: #2c75ff;
+    font-size: 0.68rem;
+    font-weight: 900;
+  }
+
+  .platform-icon.threads {
+    background: #171717;
+    color: #fff;
+  }
+
+  .platform-icon.apple-maps {
+    background: #e9f5ff;
+    color: #3187c8;
+  }
+
+  .platform-icon.吃啥快報 {
+    background: #fff0ce;
+    color: var(--chisha-orange);
+  }
+
+  .review {
+    margin: 10px 0 0;
+    color: #261c16;
+    font-size: 0.94rem;
+    font-weight: 650;
+    line-height: 1.55;
+  }
+
+  .review.muted {
+    margin-top: 2px;
+    color: #5e554c;
+    font-weight: 560;
+  }
+
+  .address {
+    flex-wrap: wrap;
+    margin: 12px 0 0;
+    color: #7b7167;
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+
+  .walk {
+    color: var(--chisha-orange);
+    font-weight: 850;
+  }
+
+  .save-button {
+    position: relative;
+    z-index: 3;
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 1px solid #eadcc8;
+    border-radius: 12px;
+    background: #fffaf1;
+    color: #7e6f62;
+    font-size: 1rem;
+  }
+
+  @media (max-width: 720px) {
+    .chisha-card {
+      grid-template-columns: 96px minmax(0, 1fr);
+      gap: 12px;
+      border-radius: 18px;
+      padding: 10px;
+    }
+
+    .food-photo {
+      min-height: 96px;
+      border-radius: 14px;
+    }
+
+    .place-heading {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    h2 {
+      font-size: 0.96rem;
+    }
+
+    .time-label,
+    .address,
+    .platform-row {
+      font-size: 0.76rem;
+    }
+
+    .rating-row,
+    .review {
+      font-size: 0.8rem;
+    }
+
+    .review {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .save-button {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      font-size: 0.86rem;
+    }
+  }
+</style>

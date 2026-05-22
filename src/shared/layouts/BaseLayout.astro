@@ -1,0 +1,102 @@
+---
+import "@shared/styles/global.css";
+import DataFreshnessNotice from "@shared/components/DataFreshnessNotice.astro";
+import { absoluteSiteUrl, sitePath } from "@shared/core/urls";
+
+interface Props {
+  title: string;
+  description: string;
+  canonicalPath?: string;
+  structuredData?: Record<string, unknown> | Array<Record<string, unknown>>;
+  siteName?: string;
+}
+
+const {
+  title,
+  description,
+  canonicalPath = Astro.url.pathname,
+  structuredData,
+  siteName = "Global Analytics",
+} = Astro.props;
+
+const canonicalUrl = absoluteSiteUrl(canonicalPath, Astro.site);
+const isWorldCupSection = Astro.url.pathname.includes("/worldcup");
+const isChishaSection = Astro.url.pathname.includes("/chisha");
+const freshnessSection = isWorldCupSection ? "worldcup" : isChishaSection ? "chisha" : "price";
+const footerTitle = isChishaSection ? "吃啥" : "Global Analytics";
+const footerCopy = isChishaSection
+  ? "吃啥目前為 UI 與資料結構展示；商家資訊、評論、營業狀態與距離需以正式資料來源為準。"
+  : "價格、庫存、運費、賽程、名單與活動條件請以來源頁面為準。本站不儲存帳號、付款資訊或個人資料。";
+---
+
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href={sitePath("/favicon.svg")} type="image/svg+xml" />
+    {structuredData && <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />}
+  </head>
+  <body>
+    <header class:list={["site-shell", "site-header", isChishaSection && "chisha-global-header"]}>
+      <a class:list={["brand", isChishaSection && "chisha-brand"]} href={sitePath(isChishaSection ? "/chisha/" : "/")} aria-label={isChishaSection ? "吃啥首頁" : "Global Analytics 首頁"}>
+        {
+          isChishaSection ? (
+            <span>吃啥</span>
+          ) : (
+            <>
+              <span class="brand-mark">GA</span>
+              <span>Global Analytics</span>
+            </>
+          )
+        }
+      </a>
+      <div class="app-switch" aria-label="網站分區">
+        <a href={sitePath("/chisha/")} aria-current={isChishaSection ? "page" : undefined}>吃啥</a>
+        <a href={sitePath("/")} aria-current={!isWorldCupSection && !isChishaSection ? "page" : undefined}>比價網</a>
+        <a href={sitePath("/worldcup/")} aria-current={isWorldCupSection ? "page" : undefined}>賽事分析</a>
+      </div>
+      <nav class="nav-links" aria-label="主要導覽">
+        {
+          isChishaSection ? (
+            <>
+              <a href={sitePath("/chisha/")}>附近</a>
+              <a href={sitePath("/chisha/#time")}>時間：即時</a>
+              <a href={sitePath("/chisha/#member")}>會員</a>
+            </>
+          ) : isWorldCupSection ? (
+            <>
+              <a href={sitePath("/worldcup/")}>World Cup Hub</a>
+              <a href={sitePath("/worldcup/#teams")}>隊伍</a>
+              <a href={sitePath("/worldcup/#players")}>球員</a>
+              <a href={sitePath("/worldcup/#matchups")}>對位</a>
+            </>
+          ) : (
+            <>
+              <a href={sitePath("/products/")}>全部商品</a>
+              <a href={sitePath("/#trends")}>熱門</a>
+              <a href={sitePath("/#categories")}>分類</a>
+            </>
+          )
+        }
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-shell footer">
+      <DataFreshnessNotice section={freshnessSection} compact />
+      <strong>{footerTitle}</strong>
+      <p>{footerCopy}</p>
+    </footer>
+  </body>
+</html>

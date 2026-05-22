@@ -1,9 +1,9 @@
 import type { APIRoute } from "astro";
-import { getSiteData } from "../lib/core/loadSiteData";
-import { absoluteSiteUrl } from "../lib/core/urls";
-import { topics } from "../lib/plugins/topicCatalog";
-import { worldCupMatchups, worldCupPlayers, worldCupTeams } from "../lib/worldcup/data";
-import { worldCupTopicPages } from "../lib/worldcup/topics";
+import { getSiteData } from "@price/core/loadSiteData";
+import { absoluteSiteUrl } from "@shared/core/urls";
+import { topics } from "@price/plugins/topicCatalog";
+import { worldCupMatchups, worldCupPlayers, worldCupTeams } from "@worldcup/lib/data";
+import { worldCupTopicPages } from "@worldcup/lib/topics";
 
 export const GET: APIRoute = async ({ site }) => {
   const siteData = await getSiteData();
@@ -12,6 +12,7 @@ export const GET: APIRoute = async ({ site }) => {
     { loc: absoluteSiteUrl("/products/", site), priority: "0.9" },
     { loc: absoluteSiteUrl("/trends/", site), priority: "0.9" },
     { loc: absoluteSiteUrl("/deals/", site), priority: "0.9" },
+    { loc: absoluteSiteUrl("/chisha/", site), priority: "0.92" },
     { loc: absoluteSiteUrl("/worldcup/", site), priority: "0.95" },
     { loc: absoluteSiteUrl("/worldcup/sources/", site), priority: "0.75" },
     ...worldCupTeams.map((team) => ({

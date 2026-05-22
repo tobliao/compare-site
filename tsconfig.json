@@ -1,6 +1,12 @@
 {
   "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
+    "paths": {
+      "@chisha/*": ["./src/apps/chisha/*"],
+      "@price/*": ["./src/apps/price/*"],
+      "@worldcup/*": ["./src/apps/worldcup/*"],
+      "@shared/*": ["./src/shared/*"]
+    },
     "types": ["node"]
   }
 }

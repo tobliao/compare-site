@@ -1,0 +1,56 @@
+---
+import { formatPrice } from "@price/core/catalog";
+import type { Offer, Store } from "@price/core/types";
+
+interface Props {
+  offer: Offer;
+  store?: Store;
+}
+
+const { offer, store } = Astro.props;
+const badges = offer.badges ?? [];
+const isProductUrl = offer.urlType === "product";
+const isMarketListing = offer.urlType === "search";
+const observedAt = offer.priceObservedAt ?? offer.fetchedAt;
+const observedLabel = new Intl.DateTimeFormat("zh-TW", {
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+}).format(new Date(observedAt));
+const badgeLabels: Record<string, string> = {
+  lowest: "最低價",
+  official: "官方/授權",
+  "cross-border": "跨境",
+};
+const visibleBadges = badges.filter((badge) => badge === "lowest" || badge === "official" || badge === "cross-border");
+---
+
+<article class="price-card">
+  <div class="price-card-main">
+    <div>
+      <h3>{store?.name ?? offer.storeId}</h3>
+      {visibleBadges.length > 0 && (
+        <div class="price-card-meta">
+          {visibleBadges.map((badge) => <span class:list={["subtle-tag", badge === "lowest" && "lowest"]}>{badgeLabels[badge]}</span>)}
+        </div>
+      )}
+    </div>
+    <div class="price">{formatPrice(offer.price)}</div>
+  </div>
+  {
+    isProductUrl ? (
+      <>
+        <a class="button" href={offer.url} rel="nofollow noopener noreferrer" target="_blank">前往商品頁</a>
+        <small class="source-note">來源：{offer.sourceName} · 價格抓取 {observedLabel} · {offer.verificationStatus === "verified-product-page" ? "商品頁驗證" : "待驗證"}</small>
+      </>
+    ) : isMarketListing ? (
+      <>
+        <a class="button secondary" href={offer.url} rel="nofollow noopener noreferrer" target="_blank">查看市場列表</a>
+        <small class="source-note">來源：{offer.sourceName} · 價格抓取 {observedLabel} · 市場列表參考價</small>
+      </>
+    ) : (
+      <span class="button disabled" aria-label="尚未取得一對一商品頁">商品頁待補</span>
+    )
+  }
+</article>

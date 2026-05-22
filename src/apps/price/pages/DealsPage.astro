@@ -1,0 +1,94 @@
+---
+import DataFreshnessNotice from "@shared/components/DataFreshnessNotice.astro";
+import ProductCard from "@price/components/ProductCard.astro";
+import BaseLayout from "@shared/layouts/BaseLayout.astro";
+import { formatPrice, getCategory, getOfferSummary, getUpdateLabel } from "@price/core/catalog";
+import { getSiteData } from "@price/core/loadSiteData";
+import { sitePath } from "@shared/core/urls";
+
+const siteData = await getSiteData();
+const productRows = siteData.products
+  .map((product) => {
+    const offers = siteData.offers.filter((offer) => offer.productSlug === product.slug);
+    return {
+      product,
+      category: getCategory(product.categoryId),
+      offers,
+      summary: getOfferSummary(offers),
+    };
+  })
+  .sort((a, b) => b.summary.spread - a.summary.spread);
+
+const verifiedProductRows = productRows.filter((row) => row.summary.bestOffer);
+const biggestSpreads = verifiedProductRows.slice(0, 9);
+const premiumDeals = productRows.filter((row) => (row.summary.bestOffer?.price ?? 0) >= 5000).slice(0, 6);
+const crossBorderDeals = productRows.filter((row) => row.summary.crossBorderOffers.length > 0).slice(0, 6);
+---
+
+<BaseLayout
+  title="今日值得比價商品｜價差最大、跨境與高單價清單"
+  description="整理今日價差最大、高單價值得比較、跨境價差商品，快速找到最值得點進去看的比價頁。"
+  canonicalPath="/deals/"
+>
+  <section class="site-shell section">
+    <div class="page-header">
+      <a class="text-link" href={sitePath("/")}>回首頁</a>
+      <span class="eyebrow">今日價差</span>
+      <h1 class="page-title">今天最值得比的商品</h1>
+      <p class="lede">先看價差，再看通路。這裡整理目前最有比較價值的商品，適合每天回來快速掃一輪。</p>
+      <div class="summary-bar">
+        <span>{getUpdateLabel(siteData.generatedAt)}</span>
+        <span>{biggestSpreads.length} 個高價差商品</span>
+        <span>{crossBorderDeals.length} 個跨境題材</span>
+      </div>
+    </div>
+
+    <DataFreshnessNotice section="price" generatedAt={siteData.generatedAt} compact />
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">價差最大</span>
+          <h2>先看這些</h2>
+        </div>
+      </div>
+      <div class="deal-card-grid">
+        {
+          biggestSpreads.map(({ product, category, summary }, index) => (
+            <a class="deal-card" href={sitePath(`/compare/${product.slug}/`)}>
+              <em>#{index + 1}</em>
+              <span>{category.name}</span>
+              <h3>{product.name}</h3>
+              <strong>{summary.bestOffer ? formatPrice(summary.bestOffer.price) : "待更新"}</strong>
+              <p>價差 {formatPrice(summary.spread)} · {summary.storeCount} 個通路</p>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">高單價</span>
+          <h2>值得多比一下</h2>
+        </div>
+      </div>
+      <div class="grid product-grid dense-grid">
+        {premiumDeals.map(({ product, category, offers }) => <ProductCard product={product} category={category} offers={offers} stores={siteData.stores} />)}
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">跨境</span>
+          <h2>注意運費與報關</h2>
+        </div>
+      </div>
+      <div class="grid product-grid dense-grid">
+        {crossBorderDeals.map(({ product, category, offers }) => <ProductCard product={product} category={category} offers={offers} stores={siteData.stores} />)}
+      </div>
+    </section>
+  </section>
+</BaseLayout>

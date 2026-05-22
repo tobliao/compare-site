@@ -196,6 +196,13 @@ svg {
   color: var(--ink);
 }
 
+.button.disabled {
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 .panel {
   border: 1px solid var(--line);
   border-radius: 22px;
@@ -694,6 +701,56 @@ svg {
   margin-top: 0;
 }
 
+.deal-card-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.deal-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(143, 94, 59, 0.08), rgba(255, 255, 255, 0.92)),
+    var(--surface);
+  padding: 18px;
+}
+
+.deal-card em {
+  width: fit-content;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 850;
+  padding: 6px 9px;
+}
+
+.deal-card span,
+.deal-card p {
+  color: var(--muted);
+}
+
+.deal-card h3 {
+  min-height: 2.6em;
+  margin: 0;
+  font-size: 1.08rem;
+  letter-spacing: -0.04em;
+}
+
+.deal-card strong {
+  color: var(--brand-dark);
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  letter-spacing: -0.06em;
+}
+
+.deal-card p {
+  line-height: 1.55;
+  margin: 0;
+}
+
 .deal-row,
 .trend-row {
   display: grid;
@@ -965,7 +1022,8 @@ svg {
   .topic-grid,
   .purpose-grid,
   .topic-brief,
-  .trend-strip {
+  .trend-strip,
+  .deal-card-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -1002,5 +1060,13 @@ svg {
 
   .topic-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .deal-card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .home-deal-grid {
+    grid-template-columns: repeat(5, 1fr);
   }
 }

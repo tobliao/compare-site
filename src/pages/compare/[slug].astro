@@ -1,12 +1,10 @@
 ---
 import PriceCard from "../../components/PriceCard.astro";
-import PriceTrendChart from "../../components/PriceTrendChart.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import {
   buildProductPageData,
   formatPrice,
   getOfferSummary,
-  getPriceTrendPoints,
   getProductDecision,
   getStore,
   getUpdateLabel,
@@ -37,7 +35,7 @@ const updatedAt = sortedOffers[0]?.fetchedAt ?? siteData.generatedAt;
 const bestStore = pageData.bestOffer ? getStore(siteData.stores, pageData.bestOffer.storeId) : undefined;
 const offerSummary = getOfferSummary(sortedOffers);
 const decision = getProductDecision(product, sortedOffers, siteData.stores);
-const trendPoints = getPriceTrendPoints(product, sortedOffers);
+const exactOffers = sortedOffers.filter((offer) => offer.urlType === "product");
 const relatedProducts = siteData.products
   .filter((item) => item.categoryId === product.categoryId && item.slug !== product.slug)
   .slice(0, 4)
@@ -80,7 +78,7 @@ const structuredData = [
       "@type": "Offer",
       priceCurrency: offer.currency,
       price: offer.price,
-      url: offer.url,
+      ...(offer.urlType === "product" ? { url: offer.url } : {}),
       availability: "https://schema.org/InStock",
       seller: {
         "@type": "Organization",
@@ -172,12 +170,8 @@ const structuredData = [
             }
           </div>
           <p class="fine-print">
-            「前往」會導向該平台的商品頁、官方商品頁或商品搜尋結果，不再只連平台首頁。價格、庫存、運費與活動條件請以來源頁面為準。
+            只有已確認為一對一商品頁的通路會顯示「前往商品頁」。搜尋結果頁不再偽裝成商品連結；待補通路需要先完成商品頁爬取與價格對帳。
           </p>
-        </section>
-
-        <section class="section" aria-labelledby="trend-title">
-          <PriceTrendChart title={`${product.name} 最近價格幅度`} points={trendPoints} />
         </section>
 
         <section class="section" aria-labelledby="channel-title">
@@ -188,6 +182,11 @@ const structuredData = [
             </div>
           </div>
           <div class="summary-card-grid">
+            <article class="summary-card">
+              <span>精準商品頁</span>
+              <strong>{exactOffers.length} 個</strong>
+              <p>{exactOffers.length > 0 ? "可直接進入確認商品頁" : "目前尚未取得一對一商品 URL"}</p>
+            </article>
             <article class="summary-card">
               <span>最低價</span>
               <strong>{offerSummary.bestOffer ? formatPrice(offerSummary.bestOffer.price) : "待更新"}</strong>
@@ -217,8 +216,8 @@ const structuredData = [
           <div class="purpose-grid compact-purpose">
             <article>
               <span>看低點</span>
-              <h2>價格是否接近近期低位</h2>
-              <p>搭配上方折線圖和最低價，判斷今天是否有明顯下降。</p>
+              <h2>歷史價格需要真實快照</h2>
+              <p>目前先看同日通路價差；等取得商品頁並累積每日快照後，再顯示真正的歷史趨勢。</p>
             </article>
             <article>
               <span>看風險</span>
@@ -288,7 +287,7 @@ const structuredData = [
     </div>
 
     {
-      pageData.bestOffer && (
+      pageData.bestOffer?.urlType === "product" && (
         <div class="sticky-cta">
           <a class="button" href={pageData.bestOffer.url} rel="nofollow noopener noreferrer" target="_blank">
             看最低價 {formatPrice(pageData.bestOffer.price)}

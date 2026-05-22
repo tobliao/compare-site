@@ -35,6 +35,7 @@ export interface Offer {
   price: number;
   currency: "TWD";
   url: string;
+  urlType: "product" | "search";
   fetchedAt: string;
   sourceName: string;
   sourceUrl: string;
@@ -91,11 +92,6 @@ export interface ProductDecision {
   bestFor: string[];
   notBestFor: string[];
   channelTip: string;
-}
-
-export interface PriceTrendPoint {
-  label: string;
-  price: number;
 }
 
 export interface ProductPageData {

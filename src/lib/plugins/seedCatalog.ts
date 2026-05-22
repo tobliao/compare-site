@@ -388,6 +388,7 @@ const offerRows: Array<[string, string, number, string[]?]> = [
 export const offers: Offer[] = offerRows.map(([productSlug, storeId, price, badges]) => {
   const product = products.find((item) => item.slug === productSlug);
   const store = stores.find((item) => item.id === storeId);
+  const offerUrl = buildOfferUrl(productSlug, product?.name ?? productSlug, storeId, store?.url ?? "https://example.com/");
 
   return {
     id: `${productSlug}-${storeId}`,
@@ -396,7 +397,8 @@ export const offers: Offer[] = offerRows.map(([productSlug, storeId, price, badg
     title: `${product?.name ?? productSlug} - ${store?.name ?? storeId}`,
     price,
     currency: "TWD",
-    url: buildOfferUrl(productSlug, product?.name ?? productSlug, storeId, store?.url ?? "https://example.com/"),
+    url: offerUrl.url,
+    urlType: offerUrl.urlType,
     fetchedAt: now,
     sourceName: "Curated seed",
     sourceUrl: "https://trends.google.com/trending/rss?geo=TW",
@@ -405,32 +407,32 @@ export const offers: Offer[] = offerRows.map(([productSlug, storeId, price, badg
   };
 });
 
-function buildOfferUrl(productSlug: string, productName: string, storeId: string, fallbackUrl: string): string {
+function buildOfferUrl(productSlug: string, productName: string, storeId: string, fallbackUrl: string): Pick<Offer, "url" | "urlType"> {
   const query = encodeURIComponent(productName);
 
   switch (storeId) {
     case "apple":
-      return getAppleProductUrl(productSlug);
+      return { url: getAppleProductUrl(productSlug), urlType: "product" };
     case "momo":
-      return `https://www.momoshop.com.tw/search/searchShop.jsp?keyword=${query}&searchType=1`;
+      return { url: `https://www.momoshop.com.tw/search/searchShop.jsp?keyword=${query}&searchType=1`, urlType: "search" };
     case "shopee":
-      return `https://shopee.tw/search?keyword=${query}`;
+      return { url: `https://shopee.tw/search?keyword=${query}`, urlType: "search" };
     case "pchome":
-      return `https://24h.pchome.com.tw/search/?q=${query}`;
+      return { url: `https://24h.pchome.com.tw/search/?q=${query}`, urlType: "search" };
     case "coupang":
-      return `https://www.tw.coupang.com/srp/${query}`;
+      return { url: `https://www.tw.coupang.com/srp/${query}`, urlType: "search" };
     case "biggo":
-      return `https://biggo.com.tw/s/${query}`;
+      return { url: `https://biggo.com.tw/s/${query}`, urlType: "search" };
     case "feebee":
-      return `https://feebee.com.tw/s/${query}/`;
+      return { url: `https://feebee.com.tw/s/${query}/`, urlType: "search" };
     case "iherb":
-      return `https://tw.iherb.com/search?kw=${query}`;
+      return { url: `https://tw.iherb.com/search?kw=${query}`, urlType: "search" };
     case "mercari":
-      return `https://jp.mercari.com/search?keyword=${query}`;
+      return { url: `https://jp.mercari.com/search?keyword=${query}`, urlType: "search" };
     case "brand-store":
-      return `${fallbackUrl}/search/${query}`;
+      return { url: `${fallbackUrl}/search/${query}`, urlType: "search" };
     default:
-      return fallbackUrl;
+      return { url: fallbackUrl, urlType: "search" };
   }
 }
 

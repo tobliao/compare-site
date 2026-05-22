@@ -1,8 +1,7 @@
 ---
 import ProductCard from "../components/ProductCard.astro";
-import PriceTrendChart from "../components/PriceTrendChart.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { formatPrice, getCategory, getOfferSummary, getPriceTrendPoints, getUpdateLabel } from "../lib/core/catalog";
+import { formatPrice, getCategory, getOfferSummary, getUpdateLabel } from "../lib/core/catalog";
 import { getSiteData } from "../lib/core/loadSiteData";
 import { sitePath } from "../lib/core/urls";
 
@@ -49,20 +48,15 @@ const crossBorderDeals = productRows.filter((row) => row.summary.crossBorderOffe
           <h2>先看這些</h2>
         </div>
       </div>
-      <div class="trend-strip">
+      <div class="deal-card-grid">
         {
-          biggestSpreads.slice(0, 3).map(({ product, offers }) => (
-            <PriceTrendChart title={product.name} points={getPriceTrendPoints(product, offers)} compact />
-          ))
-        }
-      </div>
-      <div class="deal-table">
-        {
-          biggestSpreads.map(({ product, summary }) => (
-            <a class="deal-row" href={sitePath(`/compare/${product.slug}/`)}>
-              <strong>{product.name}</strong>
-              <span>{summary.bestOffer ? formatPrice(summary.bestOffer.price) : "待更新"}</span>
-              <small>價差 {formatPrice(summary.spread)} · {summary.storeCount} 個通路</small>
+          biggestSpreads.map(({ product, category, summary }, index) => (
+            <a class="deal-card" href={sitePath(`/compare/${product.slug}/`)}>
+              <em>#{index + 1}</em>
+              <span>{category.name}</span>
+              <h3>{product.name}</h3>
+              <strong>{summary.bestOffer ? formatPrice(summary.bestOffer.price) : "待更新"}</strong>
+              <p>價差 {formatPrice(summary.spread)} · {summary.storeCount} 個通路</p>
             </a>
           ))
         }

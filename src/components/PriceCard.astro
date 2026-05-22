@@ -9,6 +9,7 @@ interface Props {
 
 const { offer, store } = Astro.props;
 const badges = offer.badges ?? [];
+const isProductUrl = offer.urlType === "product";
 const badgeLabels: Record<string, string> = {
   lowest: "最低價",
   official: "官方/授權",
@@ -29,5 +30,11 @@ const visibleBadges = badges.filter((badge) => badge === "lowest" || badge === "
     </div>
     <div class="price">{formatPrice(offer.price)}</div>
   </div>
-  <a class="button" href={offer.url} rel="nofollow noopener noreferrer" target="_blank">前往確認</a>
+  {
+    isProductUrl ? (
+      <a class="button" href={offer.url} rel="nofollow noopener noreferrer" target="_blank">前往商品頁</a>
+    ) : (
+      <span class="button disabled" aria-label="尚未取得一對一商品頁">商品頁待補</span>
+    )
+  }
 </article>

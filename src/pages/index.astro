@@ -55,9 +55,9 @@ const structuredData = {
   <section class="site-shell hero">
     <div class="hero-copy">
       <span class="eyebrow">今日值得比的價格</span>
-      <h1>不用逛十個分頁，也能看懂今天該不該買。</h1>
+      <h1>少一點分頁，多一點確定。</h1>
       <p>
-        我們把熱搜商品、通路價差、跨境提醒和購買重點整理成一張每日價格雷達。你只要先看結論，再決定要不要點進通路。
+        把熱搜商品、通路價差、跨境提醒和購買重點整理成每日價格雷達。先看結論，再決定是否進一步確認商品頁。
       </p>
       <div class="hero-actions">
         <a class="button" href={sitePath("/deals/")}>看今日值得比</a>
@@ -103,7 +103,7 @@ const structuredData = {
       <article>
         <span>3</span>
         <h2>最後再點出去</h2>
-        <p>每個價格入口都會導向商品搜尋或官方商品頁，方便直接確認庫存與活動條件。</p>
+        <p>只有確認為一對一商品頁的通路才會開放外部連結，避免搜尋結果被誤認成商品頁。</p>
       </article>
     </div>
   </section>
@@ -135,13 +135,15 @@ const structuredData = {
       </div>
       <a class="text-link" href={sitePath("/deals/")}>看今日值得比</a>
     </div>
-    <div class="deal-table compact">
+    <div class="deal-card-grid home-deal-grid">
       {
-        dealRows.map(({ product, summary }) => (
-          <a class="deal-row" href={sitePath(`/compare/${product.slug}/`)}>
-            <strong>{product.name}</strong>
-            <span>{summary.bestOffer ? formatPrice(summary.bestOffer.price) : "待更新"}</span>
-            <small>價差 {formatPrice(summary.spread)} · {summary.storeCount} 個通路</small>
+        dealRows.map(({ product, summary }, index) => (
+          <a class="deal-card" href={sitePath(`/compare/${product.slug}/`)}>
+            <em>#{index + 1}</em>
+            <span>最高價差</span>
+            <h3>{product.name}</h3>
+            <strong>{formatPrice(summary.spread)}</strong>
+            <p>最低價 {summary.bestOffer ? formatPrice(summary.bestOffer.price) : "待更新"} · {summary.storeCount} 個通路</p>
           </a>
         ))
       }
